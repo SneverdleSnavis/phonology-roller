@@ -1,6 +1,6 @@
 # Phonology Challenge: card expansion plan
 
-As of 2026-11-04 (Phase 3 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
+As of 2026-11-04 (Phase 5 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
 
 ## Where things stand
 
@@ -10,7 +10,8 @@ As of 2026-11-04 (Phase 3 done). Editable copy: [Claude Doc](https://claude.ai/a
 - **Ideas only:** curse and power-up cards (Phase 7), added 2026-11-04. Nothing decided yet, names included.
 - **Phase 2, done:** `@name` rows define named lists, and cards use them as `[@name]`. The built-in cards now use `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`, with no change to any card's wording or dice. Options can carry a `{type}` mark; `@special` uses it for the Include special fix. The parser reads and checks `needs`, `effect` (one of the six values below) and `counts`, but only `family` changes play. `needs` and `counts` take any value until Phase 3 settles their vocabulary. The Edit cards preview lists each named list (options, types, how many cards use it) and each card's tags, with unknown tags, effects, lists and types flagged. Kept cards now store `entry.rolled` (each roll's value, list and type) for the profile to read; cards kept before this only have their text.
 - **Phase 3, done:** every built-in card that writes to the language now carries `effect`, `counts`, `feature` or `needs` tags. The profile is rebuilt from the deck on every change and shown in a panel beside the deck. Clashing options are struck through and the die shrinks to what's left, a slot with one value left is set without a roll (with the reason on the card), and the pile sets aside cards whose family is taken, whose `needs` is missing, or that have no roll that fits. The set-aside list, with a reason for each card, is in the profile panel. Details and the interpretations behind the checks are in "Phase 3 as built".
-- **Not started:** everything else below. **Next step: Phase 5** (prerequisite, gap, template and rule-interaction cards, and cards for the coverage gaps). Before that, the user should check the interpretations listed under "Phase 3 as built".
+- **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
+- **Not started:** everything else below. **Next step: Phase 6** (modifier cards). Before that, the user should check the interpretations listed under "Phase 3 as built" and "Phase 5 as built".
 
 ## Summary
 
@@ -120,7 +121,7 @@ More ideas of both kinds are welcome. Curses that rewrite wording need Phase 2's
 
 ## Gaps in the current cards
 
-The 57 cards cover places, manners, counts and metrical stress well. These areas have no cards yet:
+The 57 cards cover places, manners, counts and metrical stress well. These areas had no cards. Phase 1 fixed the low vowels and Phase 5 added cards for the rest (see "Phase 5 as built"), except morphologically conditioned alternations in general:
 
 - **Low vowels.** No card can produce an open or open-mid vowel (see Fixes).
 - **Rounding.** No card asks for front rounded or back unrounded vowels. Only vowel harmony mentions roundness.
@@ -184,6 +185,8 @@ Consonant Inventory	Consonant Count Small		Include	5+[d15] consonants		family=co
 
 Rows without tags still work, so your list can be upgraded a little at a time. Untagged cards are drawn as they are today, without clash checks.
 
+Added in Phase 5: `effect=gap` (see "Phase 5 as built"), and `counts=` can name several totals for a card with several numbers, in order: `counts=onset-consonants, coda-consonants`.
+
 ## Phase 3 as built
 
 **Tags.** Each card's tags say how its rolls write to the profile:
@@ -214,6 +217,57 @@ Rows without tags still work, so your list can be upgraded a little at a time. U
 - Total vowel features has `[do/don't]` but its d4 rolls either way, so it can read "Don't include 3 contrastive vowel features". `(If do: [d4])` may have been meant. The "don't" side writes nothing to the profile.
 - `@place` lists "dorsal" next to velar and uvular, though dorsal is the major place that covers them.
 
+## Phase 5 as built
+
+**New cards.** All 21 go at the end of the card list, so no saved pile, deck or card in play moves. The wording is a draft; reword any of them in Edit cards.
+
+| Card | Category | Rule | Type |
+| --- | --- | --- | --- |
+| Consonant gap | Consonant Inventory | Leave out the [voiced/voiceless] [d12] [@place] [@obstruent] | Gap |
+| Vowel gap | Vowel Inventory | Leave out the [d7] [@vheight] [d3] [@vback] vowel | Gap |
+| Marked rounding | Vowel Inventory | [do/don't] Include (If do: [d4]) [front rounded/back unrounded] vowels | Coverage: rounding |
+| Airstream | Consonant Inventory | [do/don't] Include (If do: [d6]) [d3] [@airstream] (ejectives, implosives, clicks) | Coverage: airstream |
+| Word prosody | Tone | Mark words mainly with [stress/pitch accent/tone] | Coverage: tone |
+| Tone count | Tone | Contrast 1+[d7] tones | Prerequisite (tone) |
+| Contour tones | Tone | [do/don't] Include contour tones | Prerequisite (tone) |
+| Tone-bearing unit | Tone | Make the [mora/syllable] the tone-bearing unit | Prerequisite (tone) |
+| Maximum syllable | Phonotactics | Cap the onset at [d3] and the coda at -1+[d4] | Template |
+| Coda condition | Phonotactics | Allow only [d4] [stops/fricatives/nasals/approximants] in codas | Template |
+| Sonority sequencing | Phonotactics | [do/don't] Require rising sonority in onset clusters | Template |
+| Hiatus resolution | Phonotactics | Resolve hiatus by [d4] [deletion/epenthesis/glide formation/coalescence] | Template |
+| Lenition | Consonant Realizations | Include [lenition/fortition] of [@obstruent] consonants | Coverage: processes |
+| Final devoicing | Consonant Realizations | [do/don't] Include [word/syllable] final devoicing | Prerequisite (voicing) |
+| Palatalization | Consonant Realizations | [do/don't] Include palatalization before front vowels | Coverage: processes |
+| Vowel reduction | Vowel Realizations | [do/don't] Include unstressed vowel reduction | Coverage: processes |
+| Compensatory lengthening | Vowel Realizations | [do/don't] Include compensatory lengthening | Coverage: processes |
+| Reduplication | Morphophonology | Include [full/partial] reduplication | Coverage: morphology |
+| Ablaut | Morphophonology | [do/don't] Mark grammar with ablaut, a change in a root's vowel | Coverage: morphology |
+| Rule interaction | Rules | Include a [d4] [feeding/bleeding/counterfeeding/counterbleeding] interaction between two rules | Rule interaction |
+| Chain shift | Rules | Include a [vowel/consonant] chain shift | Rule interaction |
+
+Two new lists: `@airstream` (ejectives/implosives/clicks, sharing the special series with `@special`) and `@obstruent` (plosive/fricative/affricate, a subset of the manners). Morphophonology and Rules are new categories, with corners M and R.
+
+**Gaps.** A gap card needs its row and column in the language (the place and the manner, or the height and the backness) and leaves their crossing empty. A mandated phoneme can't fill it, so after "Leave out the voiceless bilabial plosive" the hand never deals /p/. A voiced gap also needs a voicing distinction. Only plain phonemes fill a cell: /pʰ/, /pʼ/ or /pː/ don't fill the /p/ cell, and nasalized or long vowels don't fill a vowel cell. A cell that no phoneme in the PHOIBLE table fills, like a voiced glottal plosive or anything dorsal, is crossed out, since there's no gap to leave.
+
+**Implications.** Keeping one thing now commits the language to others:
+
+- Foot type, Foot directionality, Primary stress and "Do allow degenerate feet" add a foot-based stress system, which Extrametricality now needs.
+- Word prosody: tone adds tone (so the tone cards and Tone Allophones can come up) and pitch accent adds pitch accent.
+- Final devoicing: word rules out "Allow word final voicing"; syllable also rules out syllable final voicing and needs codas.
+- "Allow syllable final …" needs codas of at least 1 consonant. "Allow word final …" doesn't, since word-final consonants can be extrasyllabic.
+- Coda condition "only nasals" needs syllable final nasals and rules out syllable final stops, fricatives and approximants.
+- Sonority sequencing needs onsets of at least 2 consonants. Compensatory lengthening needs a quantity distinction. Palatalization needs front vowels. Marked rounding "front rounded" needs front and rounded vowels.
+
+**Interpretations to check.**
+
+- *Extrametricality* (an original card) now has `needs=feet`, as the plan's prerequisite example asked. It stays set aside until a foot card is kept.
+- *Tone-bearing unit: mora* needs at least 2 moras per syllable.
+- *Word prosody* only adds; "mainly tone" doesn't rule out stress cards.
+- *Word-final versus syllable-final* consonants, as above.
+- *Gaps* count plain phonemes only, as above.
+
+**Card data to look at** (not changed): Consonant harmony has no dice, so it always reads "Include consonant harmony" and the editor warns about it. A `[do/don't]` may have been meant.
+
 ## Build phases
 
 Each phase ships on its own and leaves the roller usable.
@@ -222,7 +276,7 @@ Each phase ships on its own and leaves the roller usable.
 2. **Syntax.** Add named lists, the tags column and phoneme-pool syntax to the parser. The Edit cards preview shows each card's tags and flags unknown ones. Done: @name list rows used as [@name], {type} marks on options, the needs, effect and counts tags (read and checked, but they don't change play yet), and a preview of every list and tag. Kept cards now also store each roll with its list and type, for the profile to read.
 3. **Profile and clash checks.** Build the profile from the deck. Add the four clash kinds, pile filtering with the "set aside" list, crossed-out options and shrinking dice. Show the profile as a panel beside the deck. Done, along with the rest of Phase 4 (pool filtering and phoneme write-back).
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back. Done.
-5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps.
+5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps. Done: 21 cards, `effect=gap`, several totals per `counts=`, and implications between features.
 6. **Modifier cards.** Add cards that act on the deck, with a re-check of the profile after each change.
 7. **Game layer (ideas).** Add curse and power-up cards, the curse counter and power-up tokens. This comes after the foundation in phases 1 to 6.
 

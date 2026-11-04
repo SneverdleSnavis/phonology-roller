@@ -19,7 +19,7 @@ Keyboard: `D` draw, `R` roll, `K` keep.
 
 | Path | What it is |
 | --- | --- |
-| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 72 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
+| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 93 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
 | `docs/PLAN.md` | The card expansion plan: language profile, clash checks, phoneme cards, new card types, fixes, build phases. |
 | `scripts/check-cards.js` | Runs the card parser in Node over every built-in card with random rolls and prints the sentences and warnings, then plays random games through the clash checks and reports any clash that reaches a deck. |
 | `scripts/build-phonemes.js` | Rebuilds the phoneme table in the page from the PHOIBLE 2.0 CSV. |
@@ -35,13 +35,14 @@ Cards are rows pasted from a spreadsheet, separated by tabs (or `|`): category, 
 | `20+[d80]`, `-1+[d9]` | Roll, then add the number written before the die. |
 | `[d15*2]` | Roll, then multiply. |
 | `[d12] [a/b/…]` | Roll a d12 and take that option from the list. Rolls above the list length are rolled again. |
-| `@place  a/b/…` | A named list, on its own row anywhere in the text (brackets optional). Cards use it as `[@place]`, as in `[d12] [@place]`. The name records which part of the language the roll is about. The built-in lists are `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`. |
+| `@place  a/b/…` | A named list, on its own row anywhere in the text (brackets optional). Cards use it as `[@place]`, as in `[d12] [@place]`. The name records which part of the language the roll is about. The built-in lists are `@place`, `@manner`, `@vheight`, `@vback`, `@special`, `@vfeature`, `@airstream` and `@obstruent`. |
 | `ejectives {airstream}` | Marks an option's feature type, for lists that mix kinds (only `@special` so far). The card shows just "ejectives". Types: place, manner, airstream, laryngeal, secondary, prenasalization, height, backness, rounding, nasality, phonation, length, tone. |
 | `[do/don't]`, `[L/R]` | A list with no die. Two options flip a coin; more roll a die of that size. |
 | `(If do: …)` | Only applies when an earlier roll came up "do". |
 | `[10]` | A fixed number, nothing to roll (the editor warns about it). |
 | `family=consonant-count` | An optional last column of tags (`key=value`, separated by `;`). Only one card per family can be in the deck: keeping one sets the rest aside until it leaves. |
-| `effect=include`, `counts=consonants`, `feature=pitch accent`, `needs=tone` | How a card writes to the language profile. `effect` (`include`, `exclude`, `neutralize`, `at-most`, `symmetric`, `count`) applies to the card's named list, or to its `feature`. `counts` names the total a number sets. `needs` keeps a card set aside until the deck has that thing. The editor flags unknown tags and values. |
+| `effect=include`, `counts=consonants`, `feature=pitch accent`, `needs=tone` | How a card writes to the language profile. `effect` (`include`, `exclude`, `neutralize`, `at-most`, `symmetric`, `count`, `gap`) applies to the card's named list, or to its `feature`. `counts` names the total a number sets; a card with two numbers can name two, as in `counts=onset-consonants, coda-consonants`. `needs` keeps a card set aside until the deck has that thing. The editor flags unknown tags and values. |
+| `effect=gap` | Leaves one cell of the inventory empty, as in “Leave out the voiceless bilabial plosive”. The place and manner (or vowel height and backness) must be in the language, no mandated phoneme may fill the cell, and a cell no language in PHOIBLE has is crossed out. |
 | `[ipa:rare]`, `[ipa:front+rounded]` | Deal up to 20 phonemes that have every listed feature, then roll for one. Terms: `common`, `uncommon`, `rare`, `consonant`, `vowel`, any place, manner or vowel height, `front`/`central`/`back`, `rounded`/`unrounded`, `ejective`, `implosive`, `click`, `coarticulated`, `prenasalized`, `aspirated`, `nasalized`, `long` and more. Phonemes already in your deck aren't dealt again. |
 
 Edit the card list in the app with **Edit cards**. It shows a live preview of every list and card, with each card's tags, and flags problems. Run the parser check from the repo root:

@@ -544,8 +544,11 @@ const LIST_ROWS = [
   ["@vback", "front/central/back"],
   ["@special", "co-articulated {place}/semivowels {manner}/ejectives {airstream}/palatalized {secondary}/labialized {secondary}/aspirated {laryngeal}/sibilant fricative {manner}/prenasalization {prenasalization}"],
   ["@vfeature", "nasality/phonation type/length/tone"],
+  ["@airstream", "ejectives/implosives/clicks"],
+  ["@obstruent", "plosive/fricative/affricate"],
 ].map((r) => r.join("\t")).join("\n");
 const PLACES = "[@place]", MANNER = "[@manner]", VHEIGHT = "[@vheight]", VBACK = "[@vback]", SPECIAL = "[@special]", VFEAT = "[@vfeature]";
+const AIRSTREAM = "[@airstream]", OBSTRUENT = "[@obstruent]";
 // The built-in cards. A last column of key=value pairs holds tags; family=… allows one card per family in the deck.
 const CARD_ROWS = [
   ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants", "family=consonant-count; counts=consonants"],
@@ -600,7 +603,7 @@ const CARD_ROWS = [
   ["Phonotactics", "Syllable limitations", "", "Include", "[d4] syllable structure limitations", "counts=syllable-limits"],
   ["Vowel Inventory", "Diphthong Count", "", "Include", "[d10] diphthongs", "counts=diphthongs"],
   ["Phonotactics", "Final constraint", "[do/don't]", "Allow", "[word/syllable] final", "[d6]", "[consonants/stops/voicing/fricatives/approximants/nasals]", "feature=final; effect=include"],
-  ["Stress", "Extrametricality", "", "Include", "[L/R] extrametricality", "feature=extrametricality; effect=include"],
+  ["Stress", "Extrametricality", "", "Include", "[L/R] extrametricality", "feature=extrametricality; effect=include; needs=feet"],
   ["Phonotactics", "Word limitations", "", "Include", "[d4] word structure limitations", "counts=word-limits"],
   ["Consonant Inventory", "Manner symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d8]", MANNER, "effect=symmetric"],
   ["Inventory", "Uncommon phonemes", "", "Include", "[d15] phonemes represented by 5% or less of the world's languages", "counts=uncommon-phonemes"],
@@ -626,6 +629,28 @@ const ADDED_ROWS = [
   ["Vowel Inventory", "Include vowel backness", "[do/don't]", "Include", "(If do: [d10])", "[d3]", VBACK, "vowels", "effect=include"],
   ["Vowel Inventory", "Vowel backness limitation", "", "Allow", "at most [d2]", "[d3]", VBACK, "vowels", "effect=at-most"],
   ["Vowel Inventory", "Vowel backness symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d3]", VBACK, "vowels", "effect=symmetric"],
+  // Phase 5: gap, template, prerequisite and rule-interaction cards, and cards for the coverage gaps.
+  ["Consonant Inventory", "Consonant gap", "", "Leave out the", "[voiced/voiceless]", "[d12]", PLACES, OBSTRUENT, "effect=gap"],
+  ["Vowel Inventory", "Vowel gap", "", "Leave out the", "[d7]", VHEIGHT, "[d3]", VBACK, "vowel", "effect=gap"],
+  ["Vowel Inventory", "Marked rounding", "[do/don't]", "Include", "(If do: [d4])", "[front rounded/back unrounded] vowels", "feature=rounding; effect=include"],
+  ["Consonant Inventory", "Airstream", "[do/don't]", "Include", "(If do: [d6])", "[d3]", AIRSTREAM, "effect=include"],
+  ["Tone", "Word prosody", "", "Mark words mainly with", "[stress/pitch accent/tone]", "feature=word prosody; effect=include"],
+  ["Tone", "Tone count", "", "Contrast", "1+[d7] tones", "needs=tone; counts=tones"],
+  ["Tone", "Contour tones", "[do/don't]", "Include", "contour tones", "needs=tone; feature=contour tones; effect=include"],
+  ["Tone", "Tone-bearing unit", "", "Make the", "[mora/syllable] the tone-bearing unit", "needs=tone; feature=tone-bearing unit; effect=include"],
+  ["Phonotactics", "Maximum syllable", "", "Cap the onset at", "[d3] and the coda at -1+[d4]", "counts=onset-consonants, coda-consonants; effect=at-most"],
+  ["Phonotactics", "Coda condition", "", "Allow only", "[d4] [stops/fricatives/nasals/approximants] in codas", "feature=coda condition; effect=include"],
+  ["Phonotactics", "Sonority sequencing", "[do/don't]", "Require", "rising sonority in onset clusters", "feature=sonority sequencing; effect=include"],
+  ["Phonotactics", "Hiatus resolution", "", "Resolve hiatus by", "[d4] [deletion/epenthesis/glide formation/coalescence]", "feature=hiatus resolution; effect=include"],
+  ["Consonant Realizations", "Lenition", "", "Include", "[lenition/fortition] of", OBSTRUENT, "consonants", "feature=consonant strength; effect=include"],
+  ["Consonant Realizations", "Final devoicing", "[do/don't]", "Include", "[word/syllable] final devoicing", "needs=voicing; feature=final devoicing; effect=include"],
+  ["Consonant Realizations", "Palatalization", "[do/don't]", "Include", "palatalization before front vowels", "feature=palatalization; effect=include"],
+  ["Vowel Realizations", "Vowel reduction", "[do/don't]", "Include", "unstressed vowel reduction", "feature=vowel reduction; effect=include"],
+  ["Vowel Realizations", "Compensatory lengthening", "[do/don't]", "Include", "compensatory lengthening", "feature=compensatory lengthening; effect=include"],
+  ["Morphophonology", "Reduplication", "", "Include", "[full/partial] reduplication", "feature=reduplication; effect=include"],
+  ["Morphophonology", "Ablaut", "[do/don't]", "Mark", "grammar with ablaut, a change in a root's vowel", "feature=ablaut; effect=include"],
+  ["Rules", "Rule interaction", "", "Include a", "[d4] [feeding/bleeding/counterfeeding/counterbleeding] interaction between two rules", "feature=rule interaction; effect=include"],
+  ["Rules", "Chain shift", "", "Include a", "[vowel/consonant] chain shift", "feature=chain shift; effect=include"],
 ].map((r) => r.join("\t")).join("\n");
 const DEFAULT_SOURCE = [LIST_ROWS, CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
 // Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
@@ -636,6 +661,7 @@ const LEGACY_DEFAULTS = new Set([
   "51d-tjrh9m",  // 57 cards plus 12 phoneme cards
   "5fl-dhqlu9",  // Phase 1: 60 cards plus 12 phoneme cards, lists written out in each card
   "51c-1yp6ghk", // Phase 2: named lists, only family= tags
+  "66l-pep7tv",  // Phase 3: 72 cards with profile tags
 ]);
 function sourceFingerprint(s) {
   let h = 0x811c9dc5;
@@ -1174,14 +1200,21 @@ const COUNTS = {
   "syllable-limits": { label: "syllable structure limits", area: "syllable" },
   "word-limits": { label: "word structure limits", area: "syllable" },
   "mutation-environments": { label: "consonant mutation environments", area: "process" },
+  tones: { label: "tones", area: "prosody" },
+  "onset-consonants": { label: "consonants per onset", area: "syllable" },
+  "coda-consonants": { label: "consonants per coda", area: "syllable" },
 };
+// counts= can name several totals, comma-separated, for cards with several numbers: the first number sets the first total.
+const countNames = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
 // Tags whose value must come from a fixed list. needs= is checked against the card list once it's read.
-const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count"], counts: Object.keys(COUNTS) };
+const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count", "gap"], counts: Object.keys(COUNTS) };
+// Tags that take a comma-separated list, each item checked against TAG_VALUES.
+const TAG_LISTS = { counts: true };
 const TAG_HELP = {
   family: "Only one card of this family can be in the deck.",
   needs: "Stays out of the pile until the deck has this.",
-  effect: "How the roll changes the language: include (or rule out on don't), exclude, neutralize, at-most, symmetric or count.",
-  counts: "Which total a number roll sets.",
+  effect: "How the roll changes the language: include (or rule out on don't), exclude, neutralize, at-most, symmetric, count, or gap (leave one cell of the inventory empty).",
+  counts: "Which total a number roll sets. Name several, separated by commas, for a card with several numbers.",
   feature: "What the card is about, for cards with no named list, like feature=pitch accent.",
 };
 function parseTags(col) {
@@ -1197,7 +1230,10 @@ function tagIssues(tags) {
   const out = {};
   for (const [k, v] of Object.entries(tags)) {
     if (!KNOWN_TAGS.includes(k)) out[k] = `Unknown tag “${k}”. Known tags: ${KNOWN_TAGS.join(", ")}.`;
-    else if (TAG_VALUES[k] && !TAG_VALUES[k].includes(v)) out[k] = `${k}=${v} isn’t a known ${k}. Use one of: ${TAG_VALUES[k].join(", ")}.`;
+    else if (TAG_VALUES[k]) {
+      const bad = (TAG_LISTS[k] ? countNames(v) : [v]).filter((x) => !TAG_VALUES[k].includes(x));
+      if (bad.length) out[k] = `${k}=${bad.join(", ")} ${bad.length === 1 ? "isn’t a known " + k : "aren’t known " + k}. Use one of: ${TAG_VALUES[k].join(", ")}.`;
+    }
   }
   return out;
 }
@@ -1250,7 +1286,7 @@ function parseLibrary(src) {
     cards.push(card);
   });
   // needs= names something a kept card can put in the profile: a list option, a feature, or a total.
-  const terms = new Set(Object.keys(COUNTS).concat(PHONEME_TERMS));
+  const terms = new Set(Object.keys(COUNTS).concat(PHONEME_TERMS, IMPLIED_TERMS));
   for (const d of Object.values(lists)) d.options.forEach((o) => terms.add(normTerm(o)));
   for (const c of cards) if (c.tags.feature) {
     terms.add(c.tags.feature);
@@ -1378,10 +1414,13 @@ const isPolar = (o) => /^(do|don['’]t)$/i.test(String(o).trim());
 const normTerm = (s) => String(s).toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
 const needsTerms = (v) => String(v).split(",").map(normTerm).filter(Boolean);
 // Which part of the language a named list is about. Other lists are their own area, named after the list.
-const LIST_AREA = { place: "place", manner: "manner", special: "special", vheight: "height", vback: "backness", vfeature: "vfeature" };
+const LIST_AREA = { place: "place", manner: "manner", special: "special", vheight: "height", vback: "backness", vfeature: "vfeature",
+  airstream: "special", obstruent: "manner" };
 // Kinds of consonant or vowel: how many of them a card asks for can't exceed the inventory.
 const UNIT = { place: "consonants", manner: "consonants", special: "consonants", "place category": "consonants", voicing: "consonants",
   height: "vowels", backness: "vowels", rounding: "vowels", vfeature: "vowels" };
+// The final consonant classes on Final constraint and Coda condition.
+const FINAL_CLASSES = ["stops", "fricatives", "nasals", "approximants"];
 // Terms that only mandated phonemes write, so needs= may name them too.
 const PHONEME_TERMS = ["quantity", "implosives", "clicks", "rounded", "unrounded", "velarized", "pharyngealized"];
 // Ruling out a place category rules out each of its places. Including one needs at least one of them open.
@@ -1394,20 +1433,54 @@ const MAJOR_PLACES = {
   labial: ["bilabial", "labiodental"], coronal: ["dental", "alveolar", "postalveolar", "retroflex"],
   dorsal: ["palatal", "velar", "dorsal", "uvular"], pharyngeal: ["pharyngeal"], laryngeal: ["glottal"],
 };
-// Including one thing commits the language to another.
+// Including one thing commits the language to another: { key } needs that key too, { key, none: true } rules it
+// out, and { total, min } sets a floor on a total. "area:*" applies to every key in that area.
 const IMPLIES = {
   "quantity sensitivity": [{ key: "quantity" }],
   "vfeature:length": [{ key: "quantity" }],
   quantity: [{ total: "moras", min: 2 }],
+  "compensatory lengthening": [{ key: "quantity" }],
+  "word prosody:tone": [{ key: "vfeature:tone" }],
+  "word prosody:pitch accent": [{ key: "pitch accent" }],
+  "tone-bearing unit:mora": [{ total: "moras", min: 2 }],
+  "rounding:front rounded": [{ key: "backness:front" }, { key: "rounding:rounded" }],
+  "rounding:back unrounded": [{ key: "backness:back" }, { key: "rounding:unrounded" }],
+  palatalization: [{ key: "backness:front" }],
+  "sonority sequencing": [{ total: "onset-consonants", min: 2 }],
+  // Cards about feet commit the language to a foot-based stress system.
+  "foot type:*": [{ key: "feet" }], "foot direction:*": [{ key: "feet" }], "primary stress:*": [{ key: "feet" }], "degenerate feet": [{ key: "feet" }],
+  // Final devoicing takes away the voicing contrast at the end of a word, or of any syllable.
+  "final devoicing:word": [{ key: "final:word voicing", none: true }],
+  "final devoicing:syllable": [{ total: "coda-consonants", min: 1 }, { key: "final:syllable voicing", none: true }, { key: "final:word voicing", none: true }],
 };
+// Syllable-final consonants of any class are codas. Word-final ones may be extrasyllabic, so they don't count.
+for (const x of FINAL_CLASSES.concat("voicing")) {
+  IMPLIES["final:syllable " + x] = [{ total: "coda-consonants", min: 1 }, { key: "final:syllable consonants" }];
+  IMPLIES["final:word " + x] = [{ key: "final:word consonants" }];
+}
+IMPLIES["final:syllable consonants"] = [{ total: "coda-consonants", min: 1 }];
+// "Allow only nasals in codas" allows syllable-final nasals and rules out the other classes there (word-final ones may be extrasyllabic).
+for (const x of FINAL_CLASSES) {
+  IMPLIES["coda condition:" + x] = [{ key: "final:syllable " + x }, ...FINAL_CLASSES.filter((y) => y !== x).map((y) => ({ key: "final:syllable " + y, none: true }))];
+}
+function impliesFor(key) {
+  const [area] = splitKey(key);
+  return (IMPLIES[key] || []).concat(area ? IMPLIES[area + ":*"] || [] : []);
+}
+// Keys only an implication adds, like "feet", so needs= may name them.
+const IMPLIED_TERMS = [...new Set(Object.values(IMPLIES).flat().filter((x) => x.key && !x.none).map((x) => splitKey(x.key)[1]))];
 // Phoneme places outside the @place list.
 const PLACE_OF = { "alveolo-palatal": "palatal", epiglottal: "pharyngeal" };
 
 function splitKey(key) { const i = key.indexOf(":"); return i < 0 ? [null, key] : [key.slice(0, i), key.slice(i + 1)]; }
-const FEATURE_NOUN = { quantity: "a quantity distinction", voicing: "a voicing distinction" };
+const FEATURE_NOUN = { quantity: "a quantity distinction", voicing: "a voicing distinction", feet: "a foot-based stress system" };
+const needsLabel = (t) => FEATURE_NOUN[t] || t;
 function keyLabel(key) {
   const [area, term] = splitKey(key);
   if (!area) return FEATURE_NOUN[term] || term;
+  if (area === "cell") return `the ${term}`;
+  // "final:word voicing" -> "word final voicing", as the card says it.
+  if (area === "final" || area === "initial vowels") { const m = term.match(/^(word|syllable) ?(.*)$/); if (m) return area === "final" ? `${m[1]} final ${m[2]}` : `${m[1]} initial vowels`; }
   if (area === "place" || area === "manner" || area === "place category") return `${term} consonants`;
   if (area === "special") return /s$|ion$/.test(term) ? term : `${term} consonants`;
   if (area === "height" || area === "backness" || area === "rounding") return `${term} vowels`;
@@ -1418,7 +1491,7 @@ function keyLabel(key) {
 function keyShort(key) {
   const [area, term] = splitKey(key);
   if (!area) return term;
-  return ["place", "manner", "special", "height", "backness", "rounding", "vfeature"].includes(area) ? term : `${area}: ${term}`;
+  return ["place", "manner", "special", "height", "backness", "rounding", "vfeature", "cell"].includes(area) ? term : `${area}: ${term}`;
 }
 function amountPhrase(key, n, how) {
   const label = keyLabel(key);
@@ -1450,7 +1523,7 @@ function cardWrites(tags, facts, src) {
   const effect = tags.effect || (tags.counts ? "count" : tags.feature ? "include" : null);
   if (!effect) return out;
   let neg = false, num = null;
-  const named = [], inline = [];
+  const named = [], inline = [], ordered = [], nums = [];
   for (const f of facts) {
     if (!f || f.skipped || f.kind === "pool") continue;
     if (f.kind === "choice" && (f.polar || (!f.pending && isPolar(f.value)))) {
@@ -1458,19 +1531,40 @@ function cardWrites(tags, facts, src) {
       neg = /^don/i.test(f.value);
       continue;
     }
-    if (f.kind === "number") { if (!f.pending) num = f.value; continue; }
+    if (f.kind === "number") { nums.push(f.pending ? null : f.value); if (!f.pending) num = f.value; continue; }
     if (f.pending) return out; // what the card is about isn't known yet
     (f.list ? named : inline).push(f);
+    ordered.push(f);
   }
   if (tags.counts) {
-    if (neg || num == null) return out;
-    if (effect === "at-most") out.push({ total: tags.counts, max: num, src });
-    else if (effect === "count" || effect === "include") out.push({ total: tags.counts, min: num, max: num, src });
+    if (neg) return out;
+    const names = countNames(tags.counts);
+    names.forEach((name, k) => {
+      const n = names.length === 1 ? num : nums[k];
+      if (n == null) return;
+      if (effect === "at-most") out.push({ total: name, max: n, src });
+      else if (effect === "count" || effect === "include") out.push({ total: name, min: n, max: n, src });
+    });
+    return out;
+  }
+  // A gap needs the row and column it sits in (the place and the manner, or the height and the backness) and
+  // leaves their crossing empty. A voiced gap also needs a voicing contrast, or there'd be no voiced row.
+  if (effect === "gap") {
+    if (neg || !named.length) return out;
+    for (const f of named) out.push({ key: (LIST_AREA[f.list] || f.list) + ":" + normTerm(f.value), disp: String(f.value), min: 1, src });
+    if (inline.some((f) => normTerm(f.value) === "voiced")) out.push({ key: "voicing", min: 1, src });
+    const vowel = named.some((f) => ["height", "backness"].includes(LIST_AREA[f.list]));
+    const term = ordered.map((f) => normTerm(f.value)).join(" ") + (vowel ? " vowel" : "");
+    out.push({ key: "cell:" + term, disp: ordered.map((f) => f.value).join(" ") + (vowel ? " vowel" : ""), max: 0, src });
     return out;
   }
   // Each key comes with how the profile panel shows it, keeping the card's own spelling.
   const keys = named.map((f) => [(LIST_AREA[f.list] || f.list) + ":" + normTerm(f.value), String(f.value)]);
-  if (inline.length) { if (!tags.feature) return out; keys.push([tags.feature + ":" + inline.map((f) => normTerm(f.value)).join(" "), `${tags.feature}: ${inline.map((f) => f.value).join(" ")}`]); }
+  if (inline.length) {
+    if (!tags.feature) return out;
+    const vals = inline.map((f) => f.value).join(" "), key = tags.feature + ":" + inline.map((f) => normTerm(f.value)).join(" ");
+    keys.push([key, keyShort(key) === normTerm(vals) ? vals : `${tags.feature}: ${vals}`]);
+  }
   if (!keys.length) { if (!tags.feature) return out; keys.push([tags.feature, tags.feature]); }
   for (const [key, disp] of keys) {
     const w = (x) => out.push({ key, disp, src, ...x });
@@ -1492,6 +1586,10 @@ function phonemeWrites(sym, src) {
   const add = (key) => out.push({ key, ph: 1, src: s });
   if (p.cls === "vowel") {
     add("height:" + p.height); add("backness:" + p.back); add("rounding:" + (p.rounded ? "rounded" : "unrounded"));
+    if (p.back === "front" && p.rounded) add("rounding:front rounded");
+    if (p.back === "back" && !p.rounded) add("rounding:back unrounded");
+    const c = cellOf(p);
+    if (c) add("cell:" + c);
     if (p.nasalized) add("vfeature:nasality");
     if (p.phonation) add("vfeature:phonation type");
     if (p.long) add("vfeature:length");
@@ -1503,14 +1601,34 @@ function phonemeWrites(sym, src) {
   if (p.coarticulated) add("special:co-articulated");
   if (p.airstream === "ejective") add("special:ejectives");
   else if (p.airstream === "implosive") add("special:implosives");
-  else if (p.airstream === "click") add("special:clicks");
+  if (p.manner === "click") add("special:clicks"); // ejective clicks are both
   p.secondary.forEach((x) => add("special:" + x));
   if (p.aspirated) add("special:aspirated");
   if (p.prenasalized) add("special:prenasalization");
   if (p.sibilant && p.manner === "fricative") add("special:sibilant fricative");
   if (p.manner === "approximant" && !p.lateral && p.places.some((x) => x === "palatal" || x === "velar")) add("special:semivowels");
   if (p.long) add("quantity");
+  const c = cellOf(p);
+  if (c) add("cell:" + c);
   return out;
+}
+// The inventory cell a plain phoneme fills, as a gap card names it: "voiceless velar plosive", "close back vowel".
+// Phonemes with anything extra (aspiration, a secondary articulation, length, another airstream…) fill no cell.
+function cellOf(p) {
+  if (p.cls === "vowel") {
+    if (!p.voiced || p.phonation || p.nasalized || p.long || p.halfLong || p.short || p.pharyngealized || p.rhotic) return null;
+    return `${p.height} ${p.back} vowel`;
+  }
+  if (p.airstream !== "pulmonic" || p.places.length !== 1 || p.lateral || p.coarticulated || p.prenasalized || p.aspirated || p.breathy || p.creaky ||
+    p.secondary.length || p.long || p.halfLong || p.nasalized || p.preaspirated || p.preglottalized || p.syllabic) return null;
+  if (!["plosive", "fricative", "affricate"].includes(p.manner)) return null;
+  return `${p.voiced ? "voiced" : "voiceless"} ${PLACE_OF[p.places[0]] || p.places[0]} ${p.manner}`;
+}
+// Every cell some phoneme in the table fills. A gap anywhere else leaves out something no language has.
+let cellSet = null;
+function knownCells() {
+  if (!cellSet) cellSet = new Set(phonemes().map(cellOf).filter(Boolean));
+  return cellSet;
 }
 
 function buildProfile(writes, universe) {
@@ -1557,9 +1675,13 @@ function buildProfile(writes, universe) {
   for (let pass = 0, changed = true; changed && pass < 6; pass++) {
     changed = false;
     for (const e of [...keys.values()]) {
-      if (e.need < 1 || !IMPLIES[e.key]) continue;
-      for (const imp of IMPLIES[e.key]) {
-        if (imp.key) { const t = K(imp.key); if (t.need < 1) { t.need = 1; t.needSrc = e.needSrc; t.needSrcs = e.needSrcs; t.implied = e.key; changed = true; } }
+      if (e.need < 1) continue;
+      for (const imp of impliesFor(e.key)) {
+        if (imp.key && imp.none) {
+          const t = K(imp.key);
+          if (t.max > 0) { t.max = 0; t.maxSrc = e.needSrc; t.srcs.push(e.needSrc); t.implied = t.implied || e.key; changed = true; }
+        }
+        else if (imp.key) { const t = K(imp.key); if (t.need < 1) { t.need = 1; t.needSrc = e.needSrc; t.needSrcs = e.needSrcs; t.implied = e.key; changed = true; } }
         else { const t = T(imp.total); if (t.min < imp.min) { t.min = imp.min; t.minSrc = e.needSrc; t.implied = e.key; changed = true; } }
       }
     }
@@ -1637,6 +1759,12 @@ function profileClashes(prof) {
       : { srcs: [e.maxSrc], long: `${srcName(e.maxSrc)} allows ${amountPhrase(e.key, e.max, "at most")}`, short: `${srcName(e.maxSrc)} allows at most ${e.max}` };
     out.push(mkClash("key:" + e.key, a, b));
   }
+  // A gap where no language has a phoneme isn't a gap.
+  for (const e of keys.values()) {
+    const [area, term] = splitKey(e.key);
+    if (area !== "cell" || e.max !== 0 || knownCells().has(term)) continue;
+    out.push(mkClash("nocell:" + term, { srcs: [e.maxSrc], long: `No language in the phoneme table has a plain ${term}, so there’s no gap to leave` }, null));
+  }
   // 2. A place category needs at least one of its places open.
   for (const [g, members] of Object.entries(PLACE_GROUPS)) {
     const e = keys.get(g);
@@ -1704,7 +1832,7 @@ function profileClashes(prof) {
   // 6. Dependencies: a kept card whose prerequisite has left the deck.
   for (const w of prof.needs) {
     if (hasTerm(prof, w.needs)) continue;
-    out.push(mkClash(`needs:${w.src.id}:${w.needs}`, { srcs: [w.src], long: `${srcName(w.src)} needs ${w.needs}, and nothing in your deck includes it now` }, null));
+    out.push(mkClash(`needs:${w.src.id}:${w.needs}`, { srcs: [w.src], long: `${srcName(w.src)} needs ${needsLabel(w.needs)}, and nothing in your deck includes it now` }, null));
   }
   return out;
 }
@@ -1712,7 +1840,10 @@ function profileClashes(prof) {
 // The kept deck as a profile, ready to test candidates against. cardFor looks up a card by id.
 function universeFrom(lists) {
   const u = {};
-  for (const d of Object.values(lists || {})) u[LIST_AREA[d.name] || d.name] = d.options.map(normTerm);
+  for (const d of Object.values(lists || {})) {
+    const area = LIST_AREA[d.name] || d.name;
+    u[area] = [...new Set((u[area] || []).concat(d.options.map(normTerm)))];
+  }
   return u;
 }
 // The built-in lists, for card lists that leave out @place or @vfeature.
@@ -1787,7 +1918,7 @@ function blockReason(card, base, families) {
   if (card.family && families.has(card.family)) return { kind: "family", text: `Only one card of its family fits in a deck, and “${families.get(card.family)}” is there.` };
   if (card.tags.needs) {
     const missing = needsTerms(card.tags.needs).filter((t) => !hasTerm(base.prof, t));
-    if (missing.length) return { kind: "needs", text: `Needs ${missing.join(" and ")} in your deck first.` };
+    if (missing.length) return { kind: "needs", text: `Needs ${missing.map(needsLabel).join(" and ")} in your deck first.` };
   }
   if (!cardChecks(card)) return null;
   const r = canFinish(card, [], 0, base);
@@ -1799,7 +1930,10 @@ function shapeWarnings(card) {
   if (!t.effect && !t.counts) return out;
   const nums = card.slots.filter((s) => s.kind === "number").length;
   const named = card.slots.some((s) => s.list), inline = card.slots.some((s) => s.options && !s.list && !s.options.every(isPolar));
+  const want = countNames(t.counts).length;
   if (t.counts && !nums) out.push(`counts=${t.counts} needs a number to roll, like [d10].`);
+  else if (want > nums) out.push(`counts= names ${want} totals, but the card rolls only ${nums} ${nums === 1 ? "number" : "numbers"}. The last ${want - nums === 1 ? "total gets" : want - nums + " get"} nothing.`);
+  if (t.effect === "gap" && !named) out.push("effect=gap needs named lists for the row and column of the gap, like [@place] and [@obstruent].");
   if (t.effect === "at-most" && !nums) out.push("effect=at-most needs a number to roll for the limit.");
   if (!t.counts && t.effect && !named && !t.feature) out.push(`effect=${t.effect} needs a named list (like [@place]) or a feature= tag to say what it ${t.effect === "exclude" ? "rules out" : "includes"}.`);
   return out;
@@ -2627,16 +2761,19 @@ async function saveSource(src) {
 /* ---------- Profile panel ---------- */
 const PROFILE_AREAS = [
   ["size", "Inventory size"], ["place", "Places"], ["manner", "Manners"], ["special", "Special series"],
-  ["vowel", "Vowel space"], ["vfeature", "Vowel features"], ["prosody", "Prosody"], ["syllable", "Syllables"],
+  ["vowel", "Vowel space"], ["vfeature", "Vowel features"], ["gap", "Gaps"], ["prosody", "Prosody"], ["syllable", "Syllables"],
   ["process", "Processes"], ["phonemes", "Mandated phonemes"], ["budget", "Phoneme budget"], ["other", "Other"],
 ];
 const KEY_GROUP = {
   place: "place", "place category": "place", manner: "manner", voicing: "manner", special: "special",
   height: "vowel", backness: "vowel", rounding: "vowel", vfeature: "vfeature",
   quantity: "prosody", "quantity sensitivity": "prosody", "pitch accent": "prosody", "foot type": "prosody", "primary stress": "prosody",
-  "foot direction": "prosody", extrametricality: "prosody", "degenerate feet": "prosody",
-  "initial vowels": "syllable", final: "syllable",
+  "foot direction": "prosody", extrametricality: "prosody", "degenerate feet": "prosody", feet: "prosody",
+  "word prosody": "prosody", "contour tones": "prosody", "tone-bearing unit": "prosody", cell: "gap",
+  "initial vowels": "syllable", final: "syllable", "coda condition": "syllable", "sonority sequencing": "syllable", "hiatus resolution": "syllable",
   "consonant rules": "process", "vowel rules": "process", "consonant harmony": "process", "vowel harmony": "process",
+  "consonant strength": "process", "final devoicing": "process", palatalization: "process", "vowel reduction": "process",
+  "compensatory lengthening": "process", reduplication: "process", ablaut: "process", "rule interaction": "process", "chain shift": "process",
 };
 function keyGroup(key) { const [area, term] = splitKey(key); return KEY_GROUP[area || term] || "other"; }
 const srcList = (srcs) => [...new Set(srcs.filter(Boolean).map((x) => x.name + (x.sym ? ` (/${x.sym}/)` : "")))].join(", ");
@@ -2674,7 +2811,10 @@ function renderProfile() {
   if (base) {
     const { keys, totals, mandated } = base.prof;
     const req = requirements(base.prof);
-    for (const e of keys.values()) { const chip = chipFor(e); if (chip) { groups[keyGroup(e.key)].chips.push(chip); any = true; } }
+    for (const e of keys.values()) {
+      if (splitKey(e.key)[0] === "cell" && e.max !== 0) continue; // only gaps show, not every cell a phoneme fills
+      const chip = chipFor(e); if (chip) { groups[keyGroup(e.key)].chips.push(chip); any = true; }
+    }
     for (const u of ["consonants", "vowels"]) {
       const t = totals.get(u), r = req[u].n;
       if (!t && !r) continue;
@@ -2721,13 +2861,14 @@ function renderProfile() {
 // What a card writes to the profile, in words, for the editor preview.
 function writesHelp(c) {
   const t = c.tags;
-  if (t.counts) return `${t.effect === "at-most" ? "caps" : "sets"} ${countLabel(t.counts)}${COUNTS[t.counts] ? "" : " (unknown total)"}.`;
-  if (!t.effect) return t.needs ? `waits for ${t.needs}.` : "";
+  const once = t.needs ? `, once the deck has ${needsTerms(t.needs).map(needsLabel).join(" and ")}` : "";
+  if (t.counts) return `${t.effect === "at-most" ? "caps" : "sets"} ${countNames(t.counts).map((n) => countLabel(n) + (COUNTS[n] ? "" : " (unknown total)")).join(" and ")}${once}.`;
+  if (!t.effect) return t.needs ? `waits for ${needsTerms(t.needs).map(needsLabel).join(" and ")}.` : "";
   const lists = [...new Set(c.slots.filter((s) => s.list).map((s) => "@" + s.list))];
   const what = lists.length ? lists.join(", ") : t.feature ? `“${t.feature}”` : "nothing yet";
   const polar = c.slots.some((s) => s.kind === "choice" && s.options.every(isPolar));
-  const verb = { include: polar ? "includes, or rules out on “don't”," : "includes", exclude: "rules out", neutralize: "neutralizes", "at-most": "caps", symmetric: "makes symmetrical", count: "sets the count of" }[t.effect] || t.effect;
-  return `${verb} ${what}${t.needs ? `, once the deck has ${t.needs}` : ""}.`;
+  const verb = { include: polar ? "includes, or rules out on “don't”," : "includes", exclude: "rules out", neutralize: "neutralizes", "at-most": "caps", symmetric: "makes symmetrical", count: "sets the count of", gap: "leaves one crossing empty in" }[t.effect] || t.effect;
+  return `${verb} ${what}${once}.`;
 }
 function renderPreview() {
   const { cards, problems, lists } = parseLibrary($("src").value);
