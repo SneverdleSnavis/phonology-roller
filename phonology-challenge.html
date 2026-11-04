@@ -368,6 +368,15 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 .opt.off { opacity: .6; background: transparent; border-style: dashed; cursor: help; }
 .opt.off s { text-decoration-thickness: 1.5px; }
 .opt.num { font-family: var(--f-mono); font-size: 12px; padding: 2px 6px; min-width: 28px; justify-content: center; }
+/* Modifier cards and Free pick: options and kept cards you pick by tapping */
+button.opt.pick { cursor: pointer; font-family: var(--f-text); color: var(--ink); }
+button.opt.pick:hover, button.opt.pick:focus-visible { border-color: var(--suit); background: color-mix(in srgb, var(--suit) 10%, var(--paper)); }
+button.opt.pick.hit { background: var(--suit); color: var(--paper); }
+.strip .linkish { font-size: 14px; align-self: center; margin-left: 4px; }
+.slot.pickable { cursor: pointer; border-radius: 4px; outline: 2px dashed var(--suit); outline-offset: 1px; }
+.slot.pickable:hover { background: color-mix(in srgb, var(--suit) 12%, transparent); }
+.pile-meta .free { display: block; margin-top: 4px; color: var(--suit-4); font-weight: 500; }
+.mini li.chg { color: var(--suit); }
 .why { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
 .why:empty { display: none; }
 .why-head { margin: 0 0 4px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .04em; }
@@ -514,6 +523,7 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <dt>[ipa:rare]</dt><dd>Deal up to 20 phonemes from a pool and roll for one. Pools: common, uncommon, rare, consonant, vowel, any place, manner or vowel height, front, back, rounded, unrounded, ejective, implosive, click, coarticulated, prenasalized, aspirated, nasalized, long and more. Join them with +, like [ipa:rare+vowel].</dd>
       <dt>family=…; needs=…</dt><dd>An optional last column of tags, separated by semicolons. family allows one card of the family in the deck. needs=tone keeps a card out of the pile until the deck has tone.</dd>
       <dt>effect=include</dt><dd>How a card writes to the language profile: include (or rule out on “don't”), exclude, neutralize, at-most, symmetric or count. It applies to the card's named list, or to feature=… for cards without one.</dd>
+      <dt>modifier=reroll</dt><dd>Makes a modifier card, which changes a kept card instead of the language. reroll rolls one of its dice again, flip turns its do into don't (or back), and choose lets you choose your next pick instead of rolling it.</dd>
       <dt>counts=consonants</dt><dd>The total a number roll sets, like consonants, vowels, moras or rare-phonemes. With effect=at-most it sets a ceiling instead.</dd>
     </dl>
     <div class="ed-cols">
@@ -581,7 +591,7 @@ const CARD_ROWS = [
   ["Inventory", "Marginal phonemes", "", "Include", "[d4] marginal phonemes", "counts=marginal-phonemes"],
   ["Inventory", "Quantity distinction", "[do/don't]", "Include", "any sort of quantity distinction", "feature=quantity; effect=include"],
   ["Consonant Inventory", "Open cells", "", "Include", "-1+[d17] open cells in the consonant inventory", "counts=consonant-open-cells"],
-  ["Consonant Realizations", "Consonant harmony", "", "Include", "consonant harmony", "feature=consonant harmony; effect=include"],
+  ["Consonant Realizations", "Consonant harmony", "[do/don't]", "Include", "consonant harmony", "feature=consonant harmony; effect=include"],
   ["Consonant Inventory", "Include place category", "[do/don't]", "Include", "(If do: [d20])", "[d4]", "[peripheral/coronal/apical/laminal]", "feature=place category; effect=include"],
   ["Consonant Inventory", "Manner limitations", "", "Allow", "at most [d3]", "[d8]", MANNER, "consonants", "effect=at-most"],
   ["Inventory", "Rare phonemes", "", "Include", "[d10] phonemes represented by 1% or less of the world's languages", "counts=rare-phonemes"],
@@ -651,6 +661,10 @@ const ADDED_ROWS = [
   ["Morphophonology", "Ablaut", "[do/don't]", "Mark", "grammar with ablaut, a change in a root's vowel", "feature=ablaut; effect=include"],
   ["Rules", "Rule interaction", "", "Include a", "[d4] [feeding/bleeding/counterfeeding/counterbleeding] interaction between two rules", "feature=rule interaction; effect=include"],
   ["Rules", "Chain shift", "", "Include a", "[vowel/consonant] chain shift", "feature=chain shift; effect=include"],
+  // Phase 6: modifier cards, which change a kept card or your next roll instead of the language.
+  ["Modifier", "Re-roll", "", "Re-roll one die on a kept card", "modifier=reroll"],
+  ["Modifier", "Flip", "", "Flip a do or don't on a kept card", "modifier=flip"],
+  ["Modifier", "Free pick", "", "Your next pick is your choice", "modifier=choose"],
 ].map((r) => r.join("\t")).join("\n");
 const DEFAULT_SOURCE = [LIST_ROWS, CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
 // Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
@@ -662,6 +676,7 @@ const LEGACY_DEFAULTS = new Set([
   "5fl-dhqlu9",  // Phase 1: 60 cards plus 12 phoneme cards, lists written out in each card
   "51c-1yp6ghk", // Phase 2: named lists, only family= tags
   "66l-pep7tv",  // Phase 3: 72 cards with profile tags
+  "86v-1c9dbe5", // Phase 5: 93 cards, Consonant harmony without dice
 ]);
 function sourceFingerprint(s) {
   let h = 0x811c9dc5;
@@ -1004,6 +1019,7 @@ function catInfo(cat) {
   if (c.includes("vowel")) return { rank: real ? "[V]" : "/V/", mark: "V" };
   if (c.includes("inventory")) return { rank: "/X/", mark: "X" };
   if (c.includes("tone")) return { rank: "T", mark: "T" };
+  if (c.includes("modifier")) return { rank: "±", mark: "±" };
   const l = (cat.trim()[0] || "?").toUpperCase();
   return { rank: l, mark: l };
 }
@@ -1175,7 +1191,7 @@ function compile(tpl, lists = {}) {
 }
 // The optional last column: key=value pairs separated by semicolons, like "family=consonant-count; counts=consonants".
 const TAG_COLUMN = /^[a-z][\w-]*\s*=\s*[^;=]+(\s*;\s*[a-z][\w-]*\s*=\s*[^;=]+)*\s*;?$/i;
-const KNOWN_TAGS = ["family", "needs", "effect", "counts", "feature"];
+const KNOWN_TAGS = ["family", "needs", "effect", "counts", "feature", "modifier"];
 // Totals a counts= tag can set, with where they show in the profile. "within" totals can't exceed that inventory.
 const COUNTS = {
   consonants: { label: "consonants", area: "size" },
@@ -1207,7 +1223,7 @@ const COUNTS = {
 // counts= can name several totals, comma-separated, for cards with several numbers: the first number sets the first total.
 const countNames = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
 // Tags whose value must come from a fixed list. needs= is checked against the card list once it's read.
-const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count", "gap"], counts: Object.keys(COUNTS) };
+const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count", "gap"], counts: Object.keys(COUNTS), modifier: ["reroll", "flip", "choose"] };
 // Tags that take a comma-separated list, each item checked against TAG_VALUES.
 const TAG_LISTS = { counts: true };
 const TAG_HELP = {
@@ -1216,6 +1232,7 @@ const TAG_HELP = {
   effect: "How the roll changes the language: include (or rule out on don't), exclude, neutralize, at-most, symmetric, count, or gap (leave one cell of the inventory empty).",
   counts: "Which total a number roll sets. Name several, separated by commas, for a card with several numbers.",
   feature: "What the card is about, for cards with no named list, like feature=pitch accent.",
+  modifier: "Makes this a modifier card, which changes other cards instead of the language: reroll (one die on a kept card), flip (a do or don't on a kept card) or choose (you pick the next option yourself).",
 };
 function parseTags(col) {
   const out = {};
@@ -1273,6 +1290,9 @@ function parseLibrary(src) {
     card.tags = tags;
     card.tagIssues = tagIssues(tags);
     card.family = tags.family || null;
+    card.modifier = TAG_VALUES.modifier.includes(tags.modifier) ? tags.modifier : null;
+    // A modifier card has nothing of its own to roll, so that warning doesn't apply.
+    if (card.modifier && !card.slots.length) card.warnings = card.warnings.filter((w) => !/^No dice/.test(w));
     card.warnings.push(...Object.values(card.tagIssues));
     card.category = category || "Uncategorized";
     card.name = name || "Untitled";
@@ -1345,8 +1365,9 @@ function ruleHTML(card, values, activeIdx) {
     if (it.p.t === "text") { html += lead + esc(it.text); continue; }
     const slot = card.slots[it.p.i], v = values[it.p.i];
     if (it.text !== null) {
-      const sup = slot.kind === "pick" && !slot.implicit && !v.forced ? `<sup>${v.roll || v.n}</sup>` : "";
-      const forced = v.forced ? ` forced" title="${esc("Set without a roll. " + v.forced)}` : "";
+      const sup = slot.kind === "pick" && !slot.implicit && !v.forced && !v.chosen ? `<sup>${v.roll || v.n}</sup>` : "";
+      const note = v.forced ? "Set without a roll. " + v.forced : v.chosen ? "Chosen with Free pick, not rolled." : v.flipped ? `Flipped by “${v.flipped}”.` : "";
+      const forced = note ? ` forced" title="${esc(note)}` : "";
       html += lead + `<span class="slot done${forced}" data-i="${it.p.i}"><span class="val">${esc(it.text)}</span>${sup}</span>`;
     } else {
       const st = it.p.i === activeIdx ? " active" : "";
@@ -1375,6 +1396,8 @@ function rollSummary(card, values) {
     const v = values[i];
     if (!v || v.skipped) return `${dieName(s)} skipped`;
     if (v.forced) return `${dieName(s)} → ${v.label} (no roll, the only one that fits)`;
+    if (v.flipped) return `coin → ${v.label} (flipped by ${v.flipped})`;
+    if (v.chosen) return `${s.kind === "pool" ? "hand" : dieName(s)} → ${s.kind === "pool" ? "/" + v.sym + "/" : v.label} (chosen, not rolled)`;
     // "d12 as d9": the die shrank because some values clashed with the deck.
     const die = v.of && v.of < s.sides ? `${dieName(s)} as d${v.of}` : dieName(s);
     if (s.kind === "number") return isModified(s) ? `${die} → ${v.label} (rolled ${v.n})` : `${die} → ${v.n}`;
@@ -1914,7 +1937,13 @@ function slotChoices(card, values, i, base) {
   return { ok, crossed };
 }
 // Why a card can't be in the pile right now, or null. families maps a family to the kept card that holds it.
-function blockReason(card, base, families) {
+// deck (the kept entries) and cardFor let a modifier card check that it has a kept card to act on.
+function blockReason(card, base, families, deck, cardFor) {
+  if (card.modifier) {
+    if (card.modifier === "choose" || !deck) return null;
+    return modTargets(card.modifier, deck, cardFor, base.universe, true).length ? null
+      : { kind: "target", text: card.modifier === "flip" ? "No kept card has a do or don't that can flip without a clash." : "No kept card has a die that can land on something else." };
+  }
   if (card.family && families.has(card.family)) return { kind: "family", text: `Only one card of its family fits in a deck, and “${families.get(card.family)}” is there.` };
   if (card.tags.needs) {
     const missing = needsTerms(card.tags.needs).filter((t) => !hasTerm(base.prof, t));
@@ -1927,6 +1956,11 @@ function blockReason(card, base, families) {
 // Warnings about tags that don't match the card's dice.
 function shapeWarnings(card) {
   const t = card.tags, out = [];
+  if (card.modifier) {
+    if (card.slots.length) out.push("A modifier card acts on other cards, so its own dice are never rolled.");
+    if (t.effect || t.counts || t.feature || t.needs) out.push("A modifier card doesn't write to the language profile, so effect, counts, feature and needs are ignored.");
+    return out;
+  }
   if (!t.effect && !t.counts) return out;
   const nums = card.slots.filter((s) => s.kind === "number").length;
   const named = card.slots.some((s) => s.list), inline = card.slots.some((s) => s.options && !s.list && !s.options.every(isPolar));
@@ -1936,6 +1970,115 @@ function shapeWarnings(card) {
   if (t.effect === "gap" && !named) out.push("effect=gap needs named lists for the row and column of the gap, like [@place] and [@obstruent].");
   if (t.effect === "at-most" && !nums) out.push("effect=at-most needs a number to roll for the limit.");
   if (!t.counts && t.effect && !named && !t.feature) out.push(`effect=${t.effect} needs a named list (like [@place]) or a feature= tag to say what it ${t.effect === "exclude" ? "rules out" : "includes"}.`);
+  return out;
+}
+
+/* ---------- Modifier cards ----------
+   A modifier card changes a kept card instead of the language. modifier=reroll rolls one die on a kept card
+   again, modifier=flip turns a kept card's do into don't (or back), and modifier=choose lets you choose the
+   next option yourself instead of rolling for it. A change is checked against the deck without the card being
+   changed, so it can't add a clash, and slots whose (If …) depends on the changed one are rolled again. */
+const MODIFIER_HELP = {
+  reroll: "rolls one die on a kept card again",
+  flip: "flips a do or don't on a kept card",
+  choose: "lets you choose your next pick instead of rolling it",
+};
+// The values a kept entry was rolled with, read back from entry.rolled so the card can be changed.
+// null when the entry no longer matches the card (an older card list, or kept before rolls were recorded).
+function valuesFromEntry(card, entry) {
+  if (!card || card.name !== entry.name || !Array.isArray(entry.rolled) || entry.rolled.length !== card.slots.length) return null;
+  const values = [];
+  for (let i = 0; i < card.slots.length; i++) {
+    const s = card.slots[i], f = entry.rolled[i], cs = condState(s.cond, values);
+    if (!f) return null;
+    if (f.skipped) { if (cs !== "unmet") return null; values[i] = { skipped: true }; continue; }
+    if (cs === "unmet" || f.kind !== s.kind) return null;
+    if (s.kind === "number") {
+      const n = (f.value - (s.offset || 0)) / (s.mult || 1);
+      if (!Number.isInteger(n) || n < 1 || n > s.sides) return null;
+      values[i] = { n, label: String(f.value) };
+    } else if (s.kind === "pool") {
+      values[i] = f.value ? { n: 1, of: 1, sym: f.value, label: phonemeLabel(f.value) } : { n: 0, of: 0, sym: null, label: "no phoneme" };
+    } else {
+      const n = s.options.indexOf(f.value) + 1;
+      if (n < 1 || n > s.sides) return null;
+      values[i] = { n, label: f.value };
+    }
+  }
+  return values;
+}
+// Slot i and the slots whose (If …) depends on it, directly or through another one. A condition always
+// points at an earlier slot, so one pass in order is enough.
+function changedSlots(card, i) {
+  const out = new Set([i]);
+  card.slots.forEach((s, j) => { if (s.cond && out.has(s.cond.slot)) out.add(j); });
+  return [...out].sort((a, b) => a - b);
+}
+function clearSlots(values, slots) { const out = values.slice(); for (const j of slots) out[j] = null; return out; }
+const isPolarSlot = (s) => s.kind === "choice" && s.options.every(isPolar);
+// Up to `limit` values slot i can take with the rest of the card as it is. Stops early, for the pile check.
+function openValues(card, values, i, base, limit) {
+  const out = [];
+  for (const c of slotCandidates(card.slots[i], values, base)) {
+    if (!cardChecks(card) || canFinish(card, withValue(values, i, c), i + 1, base).ok) { out.push(c); if (out.length >= limit) break; }
+  }
+  return out;
+}
+// What a modifier could change on one kept entry: the slots it can act on. For a flip, flip is the value it
+// would land on. base is the profile of the deck without this entry.
+function modSlots(kind, card, values, base) {
+  const out = [];
+  card.slots.forEach((s, i) => {
+    const v = values[i];
+    if (!v || v.skipped) return;
+    const cleared = clearSlots(values, changedSlots(card, i));
+    if (kind === "flip") {
+      if (!isPolarSlot(s)) return;
+      const other = slotCandidates(s, cleared, base).find((c) => c.label !== v.label);
+      if (other && (!cardChecks(card) || canFinish(card, withValue(cleared, i, other), i + 1, base).ok)) out.push({ i, flip: other });
+    } else if (kind === "reroll") {
+      // Worth re-rolling only if the die could land on something other than one value.
+      if (openValues(card, cleared, i, base, 2).length >= 2) out.push({ i });
+    }
+  });
+  return out;
+}
+// Kept entries a modifier can act on, newest first: { entry, card, values, base, slots }.
+// With first, stops at the first one (enough for the pile check).
+function modTargets(kind, deck, cardFor, universe, first) {
+  const out = [];
+  const order = deck.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  for (const entry of order) {
+    const card = cardFor(entry.cardId);
+    const values = card && !card.modifier ? valuesFromEntry(card, entry) : null;
+    if (!values || !card.slots.length) continue;
+    // Cheap test first: a flip needs a do or don't.
+    if (kind === "flip" && !card.slots.some((s, i) => isPolarSlot(s) && values[i] && !values[i].skipped)) continue;
+    const base = profileBase(deck.filter((e) => e.id !== entry.id), cardFor, universe);
+    const slots = modSlots(kind, card, values, base);
+    if (!slots.length) continue;
+    out.push({ entry, card, values, base, slots });
+    if (first) break;
+  }
+  return out;
+}
+// The kept entry after a change, given the card's new values. Rolls of slots that didn't change keep their
+// original summary (which knows about smaller dice), and changes records what the card said before.
+function changedEntry(old, card, values, changed, by) {
+  const rolls = rollSummary(card, values);
+  const keepOld = Array.isArray(old.rolls) && old.rolls.length === rolls.length;
+  const out = {
+    ...old,
+    text: ruleText(card, values),
+    html: ruleHTMLDone(card, values),
+    rolls: rolls.map((r, j) => (keepOld && !changed.includes(j) ? old.rolls[j] : r)),
+    rolled: rolledFacts(card, values),
+    changes: (old.changes || []).concat({ by, was: old.text, at: Date.now() }),
+    updatedAt: Date.now(),
+  };
+  const syms = values.filter((v) => v && v.sym).map((v) => v.sym);
+  if (syms.length) out.phonemes = syms; else delete out.phonemes;
+  if (Object.keys(card.tags).length) out.tags = card.tags;
   return out;
 }
 
@@ -2114,12 +2257,19 @@ const state = {
   asideWhy: new Map(), // card id -> { kind, text }
   deck: ls.get("pc.deck", []),
   profile: null, // the deck as a language profile (profileBase); rebuilt whenever the deck or card list changes
-  current: null, // { card, values: [], idx, hands, allowed }
+  current: null, // { card, values: [], idx, hands, allowed, mod?, base? }; mod is set while a modifier card is in play
+  used: ls.get("pc.used", []), // modifier cards already used; they stay out of the pile until it's reshuffled
+  freePick: ls.get("pc.free", 0), // Free pick tokens: the next option roll is chosen instead
+
   dice: [],
   busy: false,
 };
 const store = { mode: "local", db: null, base: null, migrated: false };
 
+// The id of the card drawn from the pile: the modifier card while one is changing a kept card.
+const inPlayId = () => (state.current ? (state.current.mod ? state.current.mod.cardId : state.current.card.id) : null);
+// What the card in play is checked against: the deck, or the deck without the kept card a modifier is changing.
+const baseFor = (c) => (c && c.base) || state.profile;
 function applySource(src, { reshuffle } = { reshuffle: true }) {
   state.source = src;
   const lib = parseLibrary(src);
@@ -2137,7 +2287,7 @@ function addNewCards() {
   let known = ls.get("pc.known", null);
   if (!Array.isArray(known)) {
     const inPlay = ls.get("pc.inplay", null);
-    known = state.pile.concat(state.aside, state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.id] : []);
+    known = state.pile.concat(state.aside, state.used, state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.mod ? inPlay.mod.cardId : inPlay.id] : []);
   }
   const seen = new Set(known);
   for (const c of state.library) {
@@ -2148,9 +2298,10 @@ function addNewCards() {
   ls.set("pc.known", state.library.map((c) => c.id));
 }
 function reshufflePile(announce = true) {
-  const inPlay = state.current ? state.current.card.id : null;
+  const inPlay = inPlayId();
   state.pile = shuffle(state.library.map((c) => c.id).filter((id) => id !== inPlay));
   state.aside = [];
+  state.used = []; ls.set("pc.used", []);
   ls.set("pc.pile", state.pile);
   ls.set("pc.known", state.library.map((c) => c.id));
   syncPile();
@@ -2178,8 +2329,11 @@ function familyHolders() {
   for (const e of state.deck) { const f = e.family || familyOf(e.cardId); if (f && !out.has(f)) out.set(f, e.name); }
   return out;
 }
+const cardById = (id) => state.byId.get(id);
 function rebuildProfile() {
-  state.profile = profileBase(state.deck, (id) => state.byId.get(id), universeFrom(state.lists));
+  state.profile = profileBase(state.deck, cardById, universeFrom(state.lists));
+  const c = state.current;
+  if (c && c.mod && c.mod.entryId) c.base = profileBase(state.deck.filter((e) => e.id !== c.mod.entryId), cardById, universeFrom(state.lists));
 }
 function syncPile() {
   if (!deckReady || !Array.isArray(state.pile) || !state.profile) return { moved: [], back: [] };
@@ -2187,11 +2341,11 @@ function syncPile() {
   const why = new Map();
   for (const id of new Set(state.pile.concat(state.aside))) {
     const card = state.byId.get(id);
-    const r = card && blockReason(card, state.profile, fams);
+    const r = card && blockReason(card, state.profile, fams, state.deck, cardById);
     if (r) why.set(id, r);
   }
   state.asideWhy = why;
-  const inPlay = state.current ? state.current.card.id : null;
+  const inPlay = inPlayId();
   const moved = state.pile.filter((id) => why.has(id));
   const back = state.aside.filter((id) => ids.has(id) && !why.has(id) && !state.pile.includes(id) && id !== inPlay);
   state.pile = state.pile.filter((id) => !why.has(id));
@@ -2208,6 +2362,7 @@ function refreshProfile() {
   syncPile();
   renderProfile();
   refreshInPlay();
+  refreshMod();
 }
 const cardName = (id) => { const c = state.byId.get(id); return c ? c.name : id; };
 const listNames = (ids) => ids.map(cardName).join(", ");
@@ -2226,7 +2381,9 @@ function renderPile() {
   pile.setAttribute("aria-label", inPlay ? "Finish the card in play before drawing" : n ? `Draw a card, ${n} left` : "Pile empty");
   const aside = state.aside.length;
   const asideNote = aside ? ` · <button type="button" class="linkish" id="asideBtn" title="${esc("Set aside: " + listNames(state.aside))}">${aside} set aside</button>` : "";
-  $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`) + asideNote;
+  const used = state.used.length ? ` · <span title="${esc("Used until you reshuffle: " + listNames(state.used))}">${state.used.length} used</span>` : "";
+  const free = state.freePick ? `<span class="free">${state.freePick > 1 ? `Your next ${state.freePick} picks are` : "Your next pick is"} your choice.</span>` : "";
+  $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`) + asideNote + used + free;
 }
 
 /* ---------- Card in play ---------- */
@@ -2275,13 +2432,28 @@ function updateRule() {
   const rule = document.getElementById("rule");
   if (rule) rule.innerHTML = ruleHTML(c.card, c.values, c.idx);
   const done = c.card.slots.filter((_, i) => c.values[i]).length, total = c.card.slots.length;
-  const complete = c.idx === -1;
-  $("progress").textContent = complete ? "All blanks filled" : `${done} of ${total} rolled`;
+  const m = c.mod, changing = m && m.step === "change";
+  const complete = m ? (changing ? c.idx === -1 : m.kind === "choose") : c.idx === -1;
+  $("progress").textContent = m && !changing ? (m.kind === "choose" ? "Nothing to roll" : m.step === "slot" ? "Pick a die" : "Pick a kept card")
+    : complete ? "All blanks filled" : `${done} of ${total} rolled`;
   $("keepBtn").disabled = !complete;
+  $("keepBtn").textContent = changing ? "Save change" : m && m.kind === "choose" ? "Use card" : "Keep card";
+  $("discardBtn").hidden = !!changing; // a change under way can't be undone by discarding
   const card = $("cardSlot").querySelector(".card");
   if (card) card.classList.toggle("complete", complete);
-  // Values the deck decided, with the reason.
-  const notes = c.card.slots.map((s, i) => c.values[i] && c.values[i].forced ? `<li>Set to <b>${esc(c.values[i].label)}</b> without a roll. ${esc(c.values[i].forced)}</li>` : "").join("");
+  if (m && m.step === "slot" && c.target && rule) {
+    for (const sl of c.target.slots) { const el = rule.querySelector(`.slot[data-i="${sl.i}"]`); if (el) { el.classList.add("pickable"); el.title = "Re-roll this die"; } }
+  }
+  // Values the deck decided, with the reason, and values a modifier set.
+  const was = changing ? (state.deck.find((e) => e.id === m.entryId) || {}).text : null;
+  const notes = (changing ? `<li>Changing your kept “${esc(c.card.name)}” with “${esc(m.name)}”.${was ? ` It said: ${esc(was)}` : ""}</li>` : "") + c.card.slots.map((s, i) => {
+    const v = c.values[i];
+    if (!v) return "";
+    if (v.forced) return `<li>Set to <b>${esc(v.label)}</b> without a roll. ${esc(v.forced)}</li>`;
+    if (v.flipped) return `<li>Flipped to <b>${esc(v.label)}</b> by “${esc(v.flipped)}”.</li>`;
+    if (v.chosen) return `<li>You chose <b>${esc(v.label)}</b> with Free pick.</li>`;
+    return "";
+  }).join("");
   $("cardNotes").innerHTML = notes;
   $("cardNotes").hidden = !notes;
 }
@@ -2292,13 +2464,13 @@ function draw() {
   const id = state.pile.shift(); ls.set("pc.pile", state.pile);
   const card = state.library.find((x) => x.id === id);
   if (!card) { reshufflePile(false); return draw(); }
-  state.current = { card, values: [], idx: -1, hands: {} };
+  state.current = card.modifier ? modInPlay(card) : { card, values: [], idx: -1, hands: {} };
   saveInPlay();
   const topBack = $("pile").querySelector(".back-layer:nth-child(3)");
   renderCurrent(topBack);
   if (topBack) topBack.innerHTML = backHTML();
   renderPile();
-  advance(true);
+  if (card.modifier) setTrayForMod(true); else advance(true);
 }
 function advance(first) {
   const c = state.current;
@@ -2311,13 +2483,13 @@ function advance(first) {
     if (slot.kind === "pool") {
       if (!c.hands[i]) {
         // Only phonemes that fit the deck are dealt, and none it already has.
-        const fit = slotChoices(c.card, c.values, i, state.profile).ok;
+        const fit = slotChoices(c.card, c.values, i, baseFor(c)).ok;
         c.fit = { ...(c.fit || {}), [i]: fit.length };
         c.hands[i] = shuffle(fit).slice(0, HAND_MAX).map((x) => x.sym);
       }
       if (!c.hands[i].length) { c.values[i] = { n: 0, of: 0, sym: null, label: "no phoneme (none left in this pool fits your deck)" }; continue; }
     } else {
-      const st = slotChoices(c.card, c.values, i, state.profile);
+      const st = slotChoices(c.card, c.values, i, baseFor(c));
       if (!st.ok.length) {
         // Can't happen for a card drawn from the filtered pile, but a card restored from an older session might.
         c.allowed[i] = null;
@@ -2360,7 +2532,7 @@ function refreshInPlay() {
   if (!c || c.idx < 0 || state.busy || !state.profile || state.dice.some((d) => d.rolling)) return;
   const slot = c.card.slots[c.idx];
   if (slot.kind === "pool") return; // the hand already dealt stays
-  const st = slotChoices(c.card, c.values, c.idx, state.profile);
+  const st = slotChoices(c.card, c.values, c.idx, baseFor(c));
   const sig = (x) => (x ? x.ok.map((o) => o.n).join(",") : "all");
   if (sig(st.crossed.length ? st : null) === sig(c.allowed[c.idx] && c.allowed[c.idx].crossed.length ? c.allowed[c.idx] : null)) return;
   delete c.allowed[c.idx];
@@ -2372,6 +2544,127 @@ function takenPhonemes(c) {
   state.deck.forEach((e) => (e.phonemes || []).forEach((s) => out.push(s)));
   if (c) c.values.forEach((v) => { if (v && v.sym) out.push(v.sym); });
   return out;
+}
+
+/* ---------- Modifier in play ----------
+   A modifier card goes through steps in state.current.mod: "target" (pick a kept card), "slot" (pick which
+   die, when a re-roll has a choice), then "change": the kept card is back in play with the changed slots
+   cleared, rolled like any card against the deck without it, and saved over the old entry. Free pick has no
+   steps; using it adds a token (state.freePick) that the next option roll spends. */
+function modInPlay(card) {
+  return { card, values: [], idx: -1, hands: {}, mod: { kind: card.modifier, cardId: card.id, name: card.name, step: "target" } };
+}
+function findTargets(c) {
+  c.targets = modTargets(c.mod.kind, state.deck, cardById, universeFrom(state.lists));
+  return c.targets;
+}
+function setTrayForMod(first) {
+  const c = state.current, m = c.mod;
+  clearDice();
+  $("trayMark").textContent = "±";
+  $("why").innerHTML = "";
+  $("strip").innerHTML = "";
+  if (m.kind === "choose") {
+    $("trayHint").textContent = "nothing to roll";
+    setPrompt("Use this card to choose your next pick yourself.", "The next time a card rolls for an option, you pick one of the options that fit your deck instead. Numbers are still rolled.");
+    return;
+  }
+  const verb = m.kind === "flip" ? "flip" : "re-roll";
+  if (m.step === "slot" && c.target) {
+    $("trayHint").textContent = "pick a die to re-roll";
+    setPrompt("Pick the die to re-roll.", "It rolls again over the values that fit your deck, and so does anything that depends on it. Tap a blank on the card or a button below.");
+    $("strip").innerHTML = c.target.slots.map((sl) => `<button type="button" class="opt pick" data-reslot="${sl.i}"><b>${esc(dieName(c.card.slots[sl.i]))}</b>${esc(c.target.values[sl.i].label)}</button>`).join("")
+      + `<button type="button" class="linkish" data-back="1">Pick another card</button>`;
+    return;
+  }
+  const targets = c.targets || findTargets(c);
+  $("trayHint").textContent = `pick a kept card to ${verb}`;
+  if (!targets.length) {
+    setPrompt(`None of your kept cards can ${m.kind === "flip" ? "flip" : "be re-rolled"} right now.`, "Discard this card to the bottom of the pile.");
+    return;
+  }
+  const others = state.deck.length - targets.length;
+  setPrompt(m.kind === "flip" ? "Pick a kept card to flip." : "Pick a kept card to re-roll a die on.",
+    (m.kind === "flip" ? "Its do becomes don't, or its don't becomes do, and anything that depends on it is rolled again. " : "The die rolls again over the values that fit the rest of your deck. ")
+    + (others ? `${others} kept ${others === 1 ? "card has" : "cards have"} nothing that can change without a clash.` : ""));
+  $("strip").innerHTML = targets.map((t) => {
+    const flip = m.kind === "flip" ? t.slots[0].flip : null;
+    const title = t.entry.text + (flip ? ` Flips to “${flip.label}”.` : "");
+    return `<button type="button" class="opt pick" data-target="${esc(t.entry.id)}" title="${esc(title)}"><b>${esc(t.entry.rank || t.card.rank)}</b>${esc(t.entry.name)}</button>`;
+  }).join("");
+  if (first && !RM) $("strip").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 500, fill: "backwards" });
+}
+function pickTarget(entryId) {
+  const c = state.current; if (!c || !c.mod || state.busy) return;
+  const t = (c.targets || []).find((x) => x.entry.id === entryId); if (!t) return;
+  if (t.slots.length === 1) return startChange(t, t.slots[0]);
+  c.mod.step = "slot"; c.target = t;
+  c.card = t.card; c.values = t.values.slice();
+  saveInPlay(); renderCurrent(); setTrayForMod();
+}
+function pickSlot(i) {
+  const c = state.current; if (!c || !c.mod || c.mod.step !== "slot" || state.busy) return;
+  const sl = c.target.slots.find((x) => x.i === i); if (sl) startChange(c.target, sl);
+}
+function backToTargets() {
+  const c = state.current; if (!c || !c.mod || state.busy) return;
+  state.current = modInPlay(state.byId.get(c.mod.cardId));
+  saveInPlay(); renderCurrent(); setTrayForMod();
+}
+function startChange(t, sl) {
+  const m = state.current.mod, changed = changedSlots(t.card, sl.i);
+  const values = clearSlots(t.values, changed);
+  if (sl.flip) values[sl.i] = { n: sl.flip.n, label: sl.flip.label, flipped: m.name };
+  state.current = { card: t.card, values, idx: -1, hands: {}, base: t.base,
+    mod: { kind: m.kind, cardId: m.cardId, name: m.name, step: "change", entryId: t.entry.id, slot: sl.i, changed } };
+  saveInPlay(); renderCurrent(); renderPile();
+  advance(true);
+}
+// After the deck changes, the targets a modifier offers may have changed too.
+function refreshMod() {
+  const c = state.current;
+  if (!c || !c.mod || c.mod.kind === "choose" || c.mod.step === "change" || state.busy) return;
+  const targets = findTargets(c);
+  if (c.mod.step === "slot") {
+    const t = c.target && targets.find((x) => x.entry.id === c.target.entry.id);
+    if (!t) return backToTargets();
+    c.target = t; c.values = t.values.slice();
+    updateRule();
+  }
+  setTrayForMod();
+}
+// Uses the modifier in play: a Free pick token, or the change to a kept card.
+function useMod() {
+  const c = state.current, m = c.mod;
+  if (m.kind === "choose") {
+    state.freePick += 1; ls.set("pc.free", state.freePick);
+    doneWithMod();
+    toast("Your next pick is your choice.");
+    return;
+  }
+  if (m.step !== "change" || c.idx !== -1) return;
+  const old = state.deck.find((e) => e.id === m.entryId);
+  if (!old) { toast("That card has left your deck, so pick another."); backToTargets(); return; }
+  const entry = changedEntry(old, c.card, c.values, m.changed, m.name);
+  doneWithMod();
+  const before = state.aside.slice();
+  replaceEntry(entry);
+  toast(`Changed “${entry.name}” with “${m.name}”.` + pileNews(before));
+}
+function doneWithMod() {
+  const id = state.current.mod.cardId;
+  if (!state.used.includes(id)) state.used.push(id);
+  ls.set("pc.used", state.used);
+  state.current = null; saveInPlay();
+  renderCurrent(); renderPile(); setTrayIdle();
+}
+// " Set aside X." or " X went back into the pile.", after the deck changed.
+function pileNews(before) {
+  const set = state.aside.filter((id) => !before.includes(id));
+  const back = before.filter((id) => !state.aside.includes(id) && state.pile.includes(id));
+  const names = (ids) => ids.slice(0, 2).map((id) => `“${cardName(id)}”`).join(" and ") + (ids.length > 2 ? ` and ${ids.length - 2} more` : "");
+  return (set.length ? ` Set aside ${names(set)}, which no longer ${set.length === 1 ? "fits" : "fit"}.` : "")
+    + (back.length ? ` ${upperLead(names(back))} went back into the pile.` : "");
 }
 
 /* ---------- Tray ---------- */
@@ -2427,6 +2720,10 @@ function whyHTML(slot) {
   return `<p class="why-head">Crossed out because they clash with your deck:</p><ul>${shown.join("")}</ul>`;
 }
 function setTrayForSlot(slot, first) {
+  const c0 = state.current;
+  // A Free pick token: the next roll over options is chosen from the strip instead.
+  c0.choosing = !c0.mod && state.freePick > 0 && !!slot.options && slot.options.length >= 2;
+  if (c0.choosing) return setTrayChoose(slot, first);
   clearDice();
   const tray = $("tray");
   const name = dieBase(slot);
@@ -2490,7 +2787,37 @@ function setTrayForSlot(slot, first) {
   $("strip").innerHTML = strip;
   $("why").innerHTML = whyHTML(slot);
 }
+// Free pick: every open option is a button, and the crossed-out ones stay struck through.
+function setTrayChoose(slot, first) {
+  clearDice();
+  const c = state.current, name = dieBase(slot);
+  $("trayMark").textContent = "pick";
+  $("trayHint").textContent = "no roll this time";
+  setPrompt(`Your choice: pick ${slot.kind === "choice" ? "a side" : "an option"} instead of rolling the ${slot.pool ? "d" + slot.sides : name}.`,
+    `Free pick lets you choose this one. ${slot.crossed && slot.crossed.length ? "Options that clash with your deck are crossed out. " : ""}Blank ${c.idx + 1} of ${c.card.slots.length}.`);
+  const btn = (n, inner, extra = "") => `<button type="button" class="opt pick${extra}" data-choose="${n}">${inner}</button>`;
+  let strip;
+  if (slot.pool) strip = slot.options.map((sym, k) => { const p = phonemeInfo(sym); const t = p ? `${p.name}, ${fmtPct(p.pct)} of languages` : sym;
+    return `<button type="button" class="opt ipa pick" data-choose="${k + 1}" title="${esc(t)}" aria-label="${esc(sym)}, ${esc(t)}"><b>${k + 1}</b>${esc(sym)}</button>`; }).join("");
+  else if (slot.map) {
+    const reasons = new Map(slot.crossed.map((x) => [x.n, x.reason]));
+    strip = slot.allOptions.slice(0, slot.origSides).map((o, k) => {
+      const at = slot.map.indexOf(k + 1);
+      return at >= 0 ? btn(at + 1, esc(o)) : `<span class="opt off" title="${esc(reasons.get(k + 1) || "")}"><b aria-hidden="true">×</b><s>${esc(o)}</s></span>`;
+    }).join("");
+  } else strip = slot.options.map((o, k) => btn(k + 1, esc(o))).join("");
+  $("strip").innerHTML = strip;
+  $("why").innerHTML = whyHTML(slot);
+  if (first && !RM) $("strip").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 500, fill: "backwards" });
+}
 function setTrayDone() {
+  if (state.current && state.current.mod) {
+    clearDice(); $("trayMark").textContent = "±"; $("trayHint").textContent = "change ready";
+    setPrompt("The change is ready.", "Save it to put the changed card in your deck in place of the old one.");
+    $("strip").innerHTML = ""; $("why").innerHTML = "";
+    $("keepBtn").focus({ preventScroll: true });
+    return;
+  }
   const noDice = state.current && !state.current.card.slots.length;
   if (noDice) { clearDice(); $("trayMark").textContent = "—"; }
   const d = state.dice[0];
@@ -2512,10 +2839,7 @@ function onSlotResult(n, die) {
     return;
   }
   die.locked = true;
-  const sym = slot.pool ? slot.options[n - 1] : null;
-  // On a smaller die, face n stands for an open option (map) or an open number (faces).
-  const raw = slot.faces ? slot.faces[n - 1] : n;
-  const label = sym ? phonemeLabel(sym) : slot.options ? slot.options[n - 1] : String(raw * (slot.mult || 1) + (slot.offset || 0));
+  const { sym, raw, label, value } = valueFor(slot, n);
   let from = die.el;
   if (slot.options || slot.faces) {
     const cell = $("strip").querySelector(`.opt[data-n="${n}"]`);
@@ -2533,9 +2857,7 @@ function onSlotResult(n, die) {
   setTimeout(() => {
     const target = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
     fly(from, target, sym ? `/${sym}/` : label, () => {
-      c.values[i] = sym ? { n, label, sym, of: slot.options.length }
-        : slot.map ? { n: slot.map[n - 1], label, roll: n, of: slot.sides }
-        : slot.faces ? { n: raw, label, roll: n, of: slot.sides } : { n, label };
+      c.values[i] = value;
       state.busy = false;
       updateRule();
       const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
@@ -2543,6 +2865,42 @@ function onSlotResult(n, die) {
       advance(false);
     });
   }, RM ? 120 : 650);
+}
+// What face n of the live slot puts on the card. On a smaller die, face n stands for an open option (map)
+// or an open number (faces).
+function valueFor(slot, n) {
+  const sym = slot.pool ? slot.options[n - 1] : null;
+  const raw = slot.faces ? slot.faces[n - 1] : n;
+  const label = sym ? phonemeLabel(sym) : slot.options ? slot.options[n - 1] : String(raw * (slot.mult || 1) + (slot.offset || 0));
+  const value = sym ? { n, label, sym, of: slot.options.length }
+    : slot.map ? { n: slot.map[n - 1], label, roll: n, of: slot.sides }
+    : slot.faces ? { n: raw, label, roll: n, of: slot.sides } : { n, label };
+  return { sym, raw, label, value };
+}
+// Free pick: the option tapped on the strip goes on the card, and the token is spent.
+function choose(n, el) {
+  const c = state.current; if (!c || c.idx < 0 || !c.choosing || state.busy) return;
+  const i = c.idx, slot = liveSlot(c, i);
+  if (!slot.options || n < 1 || n > slot.options.length) return;
+  const { sym, label, value } = valueFor(slot, n);
+  delete value.roll; delete value.of;
+  value.chosen = true;
+  state.freePick = Math.max(0, state.freePick - 1); ls.set("pc.free", state.freePick);
+  c.choosing = false;
+  renderPile();
+  el.classList.add("hit");
+  setPrompt(`You chose ${label}.`, "Filling it in…");
+  state.busy = true;
+  setTimeout(() => {
+    fly(el, $("cardSlot").querySelector(`.slot[data-i="${i}"]`), sym ? `/${sym}/` : label, () => {
+      c.values[i] = value;
+      state.busy = false;
+      updateRule();
+      const s2 = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
+      if (s2) s2.classList.add("pop");
+      advance(false);
+    });
+  }, RM ? 60 : 250);
 }
 function fly(fromEl, toEl, text, done) {
   if (RM || !fromEl || !toEl) { done(); return; }
@@ -2563,7 +2921,9 @@ function fly(fromEl, toEl, text, done) {
 }
 
 function keep() {
-  const c = state.current; if (!c || c.idx !== -1 || state.busy) return;
+  const c = state.current; if (!c || state.busy) return;
+  if (c.mod) return useMod();
+  if (c.idx !== -1) return;
   const entry = {
     id: "k" + Date.now().toString(36) + rollValue(1e6).toString(36),
     cardId: c.card.id, category: c.card.category, name: c.card.name, rank: c.card.rank,
@@ -2582,11 +2942,9 @@ function keep() {
   const finish = () => {
     state.busy = false; state.current = null; saveInPlay();
     renderCurrent(); renderPile(); setTrayIdle();
-    const before = new Set(state.aside);
+    const before = state.aside.slice();
     addEntry(entry);
-    const set = state.aside.filter((id) => !before.has(id));
-    const names = set.slice(0, 2).map((id) => `“${cardName(id)}”`).join(" and ") + (set.length > 2 ? ` and ${set.length - 2} more` : "");
-    toast(set.length ? `Kept “${entry.name}”. Set aside ${names}, which no longer ${set.length === 1 ? "fits" : "fit"}.` : `Kept “${entry.name}”.`);
+    toast(`Kept “${entry.name}”.` + pileNews(before));
   };
   if (RM || !el) return finish();
   const grid = $("deckGrid"), a = el.getBoundingClientRect(), b = grid.getBoundingClientRect();
@@ -2597,7 +2955,8 @@ function keep() {
 }
 function discard() {
   const c = state.current; if (!c || state.busy) return;
-  state.pile.push(c.card.id); ls.set("pc.pile", state.pile);
+  if (c.mod && c.mod.step === "change") return; // the change is under way
+  state.pile.push(inPlayId()); ls.set("pc.pile", state.pile);
   const el = $("cardSlot").querySelector(".card");
   state.busy = true;
   const finish = () => { state.busy = false; state.current = null; saveInPlay(); renderCurrent(); renderPile(); setTrayIdle(); toast("Discarded. It went to the bottom of the pile."); };
@@ -2617,7 +2976,7 @@ function valuesFit(card, values) {
 }
 function saveInPlay() {
   const c = state.current;
-  ls.set("pc.inplay", c ? { id: c.card.id, values: c.values, hands: c.hands } : null);
+  ls.set("pc.inplay", c ? { id: c.card.id, values: c.values, hands: c.hands, ...(c.mod ? { mod: c.mod } : {}) } : null);
 }
 
 /* ---------- Deck ---------- */
@@ -2640,7 +2999,7 @@ function renderDeck() {
         <span class="n">${String(i + 1).padStart(2, "0")} · ${esc(e.category)}</span>
         <h3>${esc(e.name)}</h3>
         <p>${sanitizeEntryHTML(e)}</p>
-        <ul>${(e.rolls || []).map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+        <ul>${(e.rolls || []).map((r) => `<li>${esc(r)}</li>`).join("")}${(e.changes || []).map((x) => `<li class="chg" title="${esc(x.was ? "It said: " + x.was : "")}">changed by ${esc(x.by)}</li>`).join("")}</ul>
         <button class="x" type="button" data-remove="${esc(e.id)}" aria-label="Remove ${esc(e.name)} from deck">×</button>
       </article>`;
     }).join("");
@@ -2671,6 +3030,18 @@ function addEntry(entry) {
   } else {
     state.deck.push(entry); ls.set("pc.deck", state.deck); renderDeck();
   }
+}
+// A kept card changed by a modifier replaces its entry, keeping its id and place in the deck.
+function replaceEntry(entry) {
+  freshId = entry.id;
+  state.deck = state.deck.map((e) => (e.id === entry.id ? entry : e));
+  if (store.mode === "account") {
+    store.db.collection(store.base + "/deck").doc(entry.id).set(entry).catch(() => {
+      toast("Couldn’t save the change to your account, so it’s kept in this browser.");
+      store.mode = "local"; setStatus("local"); ls.set("pc.deck", state.deck);
+    });
+  } else ls.set("pc.deck", state.deck);
+  renderDeck();
 }
 function announceReturned(before) {
   const back = before.filter((id) => !state.aside.includes(id) && state.pile.includes(id));
@@ -2861,6 +3232,7 @@ function renderProfile() {
 // What a card writes to the profile, in words, for the editor preview.
 function writesHelp(c) {
   const t = c.tags;
+  if (c.modifier) return MODIFIER_HELP[c.modifier] + ".";
   const once = t.needs ? `, once the deck has ${needsTerms(t.needs).map(needsLabel).join(" and ")}` : "";
   if (t.counts) return `${t.effect === "at-most" ? "caps" : "sets"} ${countNames(t.counts).map((n) => countLabel(n) + (COUNTS[n] ? "" : " (unknown total)")).join(" and ")}${once}.`;
   if (!t.effect) return t.needs ? `waits for ${needsTerms(t.needs).map(needsLabel).join(" and ")}.` : "";
@@ -2896,7 +3268,7 @@ function renderPreview() {
     const writes = writesHelp(c);
     out.push(`<div class="pv"><b style="color:${c.suit}">${esc(c.rank)}</b> · <b>${esc(c.name)}</b>
       <div class="meta">${esc(c.category)} · ${esc(dice)}</div>
-      ${writes ? `<div class="meta">Profile: ${esc(writes)}</div>` : ""}
+      ${writes ? `<div class="meta">${c.modifier ? "Modifier" : "Profile"}: ${esc(writes)}</div>` : ""}
       <div>${ruleHTML(c, [], -1).replace(/<span class="slot[^"]*" data-i="\d+">/g, '<span class="slot">')}</div>
       ${tags ? `<div class="tags">${tags}</div>` : ""}
       ${c.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>`);
@@ -2921,6 +3293,16 @@ $("pileCount").addEventListener("click", (e) => {
   list.classList.remove("flash"); void list.offsetWidth; list.classList.add("flash");
 });
 $("shuffleBtn").addEventListener("click", () => reshufflePile(true));
+$("strip").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.choose) choose(+b.dataset.choose, b);
+  else if (b.dataset.target) pickTarget(b.dataset.target);
+  else if (b.dataset.reslot) pickSlot(+b.dataset.reslot);
+  else if (b.dataset.back) backToTargets();
+});
+$("cardSlot").addEventListener("click", (e) => {
+  const el = e.target.closest(".slot.pickable"); if (el) pickSlot(+el.dataset.i);
+});
 $("keepBtn").addEventListener("click", keep);
 $("discardBtn").addEventListener("click", discard);
 $("deckGrid").addEventListener("click", (e) => {
@@ -2984,7 +3366,17 @@ if (state.source === DEFAULT_SOURCE) {
 if (!Array.isArray(state.aside)) state.aside = [];
 applySource(state.source, { reshuffle: false });
 const saved = ls.get("pc.inplay", null);
-if (saved) {
+if (saved && saved.mod) {
+  // A modifier in play. A change under way comes back as it was; otherwise it starts again at picking a card.
+  const modCard = state.byId.get(saved.mod.cardId);
+  if (modCard && modCard.modifier) {
+    const card = saved.mod.step === "change" && state.byId.get(saved.id);
+    state.current = card && Array.isArray(saved.values) && valuesFit(card, saved.values)
+      ? { card, values: saved.values, idx: -1, hands: saved.hands && typeof saved.hands === "object" ? saved.hands : {}, mod: saved.mod }
+      : modInPlay(modCard);
+    state.pile = state.pile.filter((id) => id !== modCard.id);
+  }
+} else if (saved) {
   const card = state.library.find((c) => c.id === saved.id);
   if (card) {
     const fits = Array.isArray(saved.values) && valuesFit(card, saved.values);
@@ -2996,7 +3388,9 @@ syncSoundBtn();
 renderPile();
 renderCurrent();
 renderDeck();
-if (state.current) advance(false); else setTrayIdle();
+if (!state.current) setTrayIdle();
+else if (state.current.mod && state.current.mod.step !== "change") setTrayForMod();
+else advance(false);
 connectStore();
 })();
 </script>

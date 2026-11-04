@@ -1,6 +1,6 @@
 # Phonology Challenge: card expansion plan
 
-As of 2026-11-04 (Phase 5 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
+As of 2026-11-04 (Phase 6 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
 
 ## Where things stand
 
@@ -11,7 +11,8 @@ As of 2026-11-04 (Phase 5 done). Editable copy: [Claude Doc](https://claude.ai/a
 - **Phase 2, done:** `@name` rows define named lists, and cards use them as `[@name]`. The built-in cards now use `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`, with no change to any card's wording or dice. Options can carry a `{type}` mark; `@special` uses it for the Include special fix. The parser reads and checks `needs`, `effect` (one of the six values below) and `counts`, but only `family` changes play. `needs` and `counts` take any value until Phase 3 settles their vocabulary. The Edit cards preview lists each named list (options, types, how many cards use it) and each card's tags, with unknown tags, effects, lists and types flagged. Kept cards now store `entry.rolled` (each roll's value, list and type) for the profile to read; cards kept before this only have their text.
 - **Phase 3, done:** every built-in card that writes to the language now carries `effect`, `counts`, `feature` or `needs` tags. The profile is rebuilt from the deck on every change and shown in a panel beside the deck. Clashing options are struck through and the die shrinks to what's left, a slot with one value left is set without a roll (with the reason on the card), and the pile sets aside cards whose family is taken, whose `needs` is missing, or that have no roll that fits. The set-aside list, with a reason for each card, is in the profile panel. Details and the interpretations behind the checks are in "Phase 3 as built".
 - **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
-- **Not started:** everything else below. **Next step: Phase 6** (modifier cards). Before that, the user should check the interpretations listed under "Phase 3 as built" and "Phase 5 as built".
+- **Phase 6, done:** 3 modifier cards (96 in all): Re-roll, Flip and Free pick, marked with a new `modifier=` tag. Re-roll and Flip change a kept card, checked against the deck without it, and save over the old entry with a note of what it said before. Free pick gives a token for choosing the next option yourself. Consonant harmony now has a `[do/don't]`. Details and the interpretations behind them are in "Phase 6 as built".
+- **Not started:** Phase 7 (curses and power-ups). **Next step:** the user should check the interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built", and answer the open questions for Phase 7 (names, stacking, a game-layer setting, token limits).
 
 ## Summary
 
@@ -266,7 +267,32 @@ Two new lists: `@airstream` (ejectives/implosives/clicks, sharing the special se
 - *Word-final versus syllable-final* consonants, as above.
 - *Gaps* count plain phonemes only, as above.
 
-**Card data to look at** (not changed): Consonant harmony has no dice, so it always reads "Include consonant harmony" and the editor warns about it. A `[do/don't]` may have been meant.
+**Card data to look at:** Consonant harmony had no dice, so it always read "Include consonant harmony". Since Phase 6 it reads "[do/don't] Include consonant harmony", as the user asked.
+
+## Phase 6 as built
+
+**New cards.** All 3 go at the end of the card list, in a new Modifier category with the corner ±. The wording is a draft.
+
+| Card | Rule | Tag | What happens |
+| --- | --- | --- | --- |
+| Re-roll | Re-roll one die on a kept card | `modifier=reroll` | Pick a kept card, then the die if it has more than one that can change. That die rolls again, with clashing values crossed out as usual. |
+| Flip | Flip a do or don't on a kept card | `modifier=flip` | Pick a kept card. Its do becomes don't, or the reverse, without a roll. |
+| Free pick | Your next pick is your choice | `modifier=choose` | Use it to get a token. The next roll over options (a list, a coin or a phoneme hand) shows the open options as buttons, and you pick one. |
+
+**How a change works.** The kept card goes back into play with its rolls filled in. The changed slot is cleared, along with any slot whose `(If …)` depends on it, so flipping "don't" to "do" on Include place rolls the count and the place, and flipping "do" to "don't" skips them. Everything is checked against the deck without the card being changed, so a change can't add a clash. **Save change** replaces the kept entry: same id, same place in the deck, rolls that didn't change keep their old summary, and `entry.changes` records which modifier changed it and what the card said before. The deck shows "changed by Re-roll", with the old wording on hover.
+
+**In the pile.** Re-roll and Flip are set aside while no kept card can take the change, with the reason in the set-aside list, so they never come up at the start of a game. A used modifier stays out of the pile until the next reshuffle (the count under the pile shows how many are used). Discard works as for any card until a change is under way; after that, the only way out is Save change. A reload in the middle of a change comes back to the same point. A reload while you're picking a card or a die goes back to picking the card.
+
+**Interpretations to check.**
+
+- *Which dice can be re-rolled.* Only dice with at least two values that fit the deck. A die with one value left would land on the same thing, so its card isn't offered.
+- *Which cards can flip.* Only cards whose do or don't can change without a clash. For example, "Don't include tone" can't flip while a tone card depends on tone.
+- *Free pick* covers lists, coins and phoneme hands, but not numbers. "Pick" is how the editor's syntax help describes rolling on a list. Re-roll and Flip changes don't use the token.
+- *Free pick tokens* stack, and a discarded card doesn't spend one.
+- *Used modifiers* leave the pile until a reshuffle, rather than going to the bottom like a discard.
+- *Overlap with the Re-roll power-up (Phase 7).* The modifier acts on a kept card and the power-up on the card in play, so they can both exist. If Phase 7 makes discards cost a token, the modifier's Discard should probably stay free.
+
+**Card data to look at** (not changed): Total vowel features can still read "Don't include 1 contrastive vowel features" (see "Phase 3 as built"), and Flip now makes that more likely to come up.
 
 ## Build phases
 
@@ -277,7 +303,7 @@ Each phase ships on its own and leaves the roller usable.
 3. **Profile and clash checks.** Build the profile from the deck. Add the four clash kinds, pile filtering with the "set aside" list, crossed-out options and shrinking dice. Show the profile as a panel beside the deck. Done, along with the rest of Phase 4 (pool filtering and phoneme write-back).
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back. Done.
 5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps. Done: 21 cards, `effect=gap`, several totals per `counts=`, and implications between features.
-6. **Modifier cards.** Add cards that act on the deck, with a re-check of the profile after each change.
+6. **Modifier cards.** Add cards that act on the deck, with a re-check of the profile after each change. Done: Re-roll, Flip and Free pick, `modifier=` tags, and changes saved over the kept entry.
 7. **Game layer (ideas).** Add curse and power-up cards, the curse counter and power-up tokens. This comes after the foundation in phases 1 to 6.
 
 ## Open questions
