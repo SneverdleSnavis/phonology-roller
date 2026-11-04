@@ -1,6 +1,6 @@
 # Phonology Challenge roller: working notes
 
-Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (currently Phase 2: syntax).
+Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (currently Phase 3: profile and clash checks).
 
 ## The app
 
@@ -11,17 +11,17 @@ Read `docs/PLAN.md` first. Its "Where things stand" section says what is built a
 
 ## Script layout (in order)
 
-1. `CARD_ROWS` (the original cards, fixed in Phase 1), `PHONEME_ROWS` and `ADDED_ROWS` make `DEFAULT_SOURCE`. Card ids hold the row index, so **add new built-in cards at the end** of `ADDED_ROWS`. Before changing any built-in card, add `sourceFingerprint(DEFAULT_SOURCE)` of the current list to `LEGACY_DEFAULTS` so saved copies upgrade, and map any renamed card's old id in `RENAMED_IDS`. New cards are shuffled into an existing pile via `pc.known`.
+1. `LIST_ROWS` (the named lists, `@place` and so on), `CARD_ROWS` (the original cards, fixed in Phase 1), `PHONEME_ROWS` and `ADDED_ROWS` make `DEFAULT_SOURCE`. Cards refer to lists as `[@name]`; the `PLACES`, `MANNER`… constants are just those references. Card ids hold the row index, so **add new built-in cards at the end** of `ADDED_ROWS`. Before changing any built-in card, add `sourceFingerprint(DEFAULT_SOURCE)` of the current list to `LEGACY_DEFAULTS` so saved copies upgrade, and map any renamed card's old id in `RENAMED_IDS`. New cards are shuffled into an existing pile via `pc.known`.
    Then the phoneme section: `PHOIBLE_DATA` (generated, don't hand-edit), `describePhoneme(sym)` which reads features from the IPA symbol, tags and bands, and `poolFor` / `dealHand` for `[ipa:…]` pools.
 2. `catInfo` / `suitFor`: corner rank (`/C/`, `[C]`, `/V/`, `[V]`, `/X/`, `ˈσ`, `σ`) and suit colour per category.
-3. Parser: `compile(tpl)` turns rule text into `parts` (text and slot pieces, each with `sp` for a space before it, and a `cond`) and `slots` (`kind`: number, pick, choice or pool, plus `sides`, `options`, `mult`, `offset`, `cond`). `parseLibrary(src)` splits rows and reads an optional last column of `key=value` tags into `card.tags` (`KNOWN_TAGS` lists the ones it understands; only `family` so far).
-4. Rendering: `pieces` → `ruleHTML` (card in play), `ruleText` (plain text), `ruleHTMLDone` (deck), `rollSummary`.
+3. Parser: `compile(tpl, lists)` turns rule text into `parts` (text and slot pieces, each with `sp` for a space before it, and a `cond`) and `slots` (`kind`: number, pick, choice or pool, plus `sides`, `options`, `mult`, `offset`, `cond`; picks and choices also carry `list`, the named list they came from, and `types`, the `{type}` marks per option or null). `parseOptions` reads `a/b {type}/c`; `FEATURE_TYPES` lists the known types. `parseLibrary(src)` reads `@name` list rows first (so order doesn't matter), then cards, and returns `{ cards, problems, lists }`. It reads an optional last column of `key=value` tags into `card.tags`; `KNOWN_TAGS` (family, needs, effect, counts) and `TAG_VALUES` (allowed `effect` values) drive `card.tagIssues`, which the editor preview shows. Only `family` changes play so far.
+4. Rendering: `pieces` → `ruleHTML` (card in play), `ruleText` (plain text), `ruleHTMLDone` (deck), `rollSummary`, and `rolledFacts` (structured results stored as `entry.rolled`).
 5. `Die` class: 2D throw physics in the tray, flick or tap, `prefers-reduced-motion` support. Picks rolled above the list length are re-rolled in `onSlotResult`.
 6. App state, families (`syncFamilies`: one card per family in the deck, the rest in `state.aside`), pile, card in play, tray, deck, saving (`connectStore`), editor, wiring, boot. Boot moves renamed ids, and drops saved in-play rolls that no longer fit the card (`valuesFit`).
 
 ## Saving
 
-- With `db` available and a user id, the deck is stored in `data/users/<id>/deck/<entryId>` and a custom card list in `data/users/<id>/prefs/library`. Otherwise it falls back to `localStorage` keys `pc.deck`, `pc.source`, `pc.pile`, `pc.inplay` (with any dealt phoneme hands), `pc.known`, `pc.aside` and `pc.sound`. Kept phoneme cards carry `phonemes: [symbols]` on the deck entry.
+- With `db` available and a user id, the deck is stored in `data/users/<id>/deck/<entryId>` and a custom card list in `data/users/<id>/prefs/library`. Otherwise it falls back to `localStorage` keys `pc.deck`, `pc.source`, `pc.pile`, `pc.inplay` (with any dealt phoneme hands), `pc.known`, `pc.aside` and `pc.sound`. Kept phoneme cards carry `phonemes: [symbols]` on the deck entry. Every entry kept since Phase 2 also carries `rolled`: one item per slot, `{ kind, value, list?, type? }` or `{ skipped: true }`. Older entries have only `text` and `rolls`.
 - The language profile planned in Phase 3 should be **derived from the deck**, never stored separately.
 
 ## Checking changes

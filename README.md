@@ -34,13 +34,16 @@ Cards are rows pasted from a spreadsheet, separated by tabs (or `|`): category, 
 | `20+[d80]`, `-1+[d9]` | Roll, then add the number written before the die. |
 | `[d15*2]` | Roll, then multiply. |
 | `[d12] [a/b/…]` | Roll a d12 and take that option from the list. Rolls above the list length are rolled again. |
+| `@place  a/b/…` | A named list, on its own row anywhere in the text (brackets optional). Cards use it as `[@place]`, as in `[d12] [@place]`. The name records which part of the language the roll is about. The built-in lists are `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`. |
+| `ejectives {airstream}` | Marks an option's feature type, for lists that mix kinds (only `@special` so far). The card shows just "ejectives". Types: place, manner, airstream, laryngeal, secondary, prenasalization, height, backness, rounding, nasality, phonation, length, tone. |
 | `[do/don't]`, `[L/R]` | A list with no die. Two options flip a coin; more roll a die of that size. |
 | `(If do: …)` | Only applies when an earlier roll came up "do". |
 | `[10]` | A fixed number, nothing to roll (the editor warns about it). |
 | `family=consonant-count` | An optional last column of tags (`key=value`, separated by `;`). Only one card per family can be in the deck: keeping one sets the rest aside until it leaves. |
+| `needs=tone`, `effect=neutralize`, `counts=consonants` | Tags for the clash checks planned in Phase 3. The parser reads them and the editor shows them; they don't change play yet. `effect` is one of `include`, `exclude`, `neutralize`, `at-most`, `symmetric`, `count`. Unknown tags and effects are flagged in the editor. |
 | `[ipa:rare]`, `[ipa:front+rounded]` | Deal up to 20 phonemes that have every listed feature, then roll for one. Terms: `common`, `uncommon`, `rare`, `consonant`, `vowel`, any place, manner or vowel height, `front`/`central`/`back`, `rounded`/`unrounded`, `ejective`, `implosive`, `click`, `coarticulated`, `prenasalized`, `aspirated`, `nasalized`, `long` and more. Phonemes already in your deck aren't dealt again. |
 
-Edit the card list in the app with **Edit cards**. It shows a live preview and flags problems. Run the parser check from the repo root:
+Edit the card list in the app with **Edit cards**. It shows a live preview of every list and card, with each card's tags, and flags problems. Run the parser check from the repo root:
 
 ```bash
 node scripts/check-cards.js

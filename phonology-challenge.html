@@ -326,11 +326,20 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 .syntax { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 0; }
 .syntax dt { font-family: var(--f-mono); font-size: 12px; color: var(--accent); white-space: nowrap; }
 .syntax dd { margin: 0; color: var(--muted); }
+@media (min-width: 960px) { .syntax { grid-template-columns: auto 1fr auto 1fr; font-size: 13.5px; } }
 .preview { display: grid; gap: 8px; align-content: start; max-height: 420px; overflow: auto; }
 .pv { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 14px; }
 .pv b { font-family: var(--f-display); font-weight: 600; }
 .pv .meta { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .pv .warn { color: var(--danger); font-size: 13px; }
+.pv .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.pv .tag {
+  font-family: var(--f-mono); font-size: 11px; line-height: 1.5; padding: 0 6px; border-radius: 4px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.pv .tag.bad { border-color: var(--danger); color: var(--danger); }
+.pv .opts { font-size: 13px; color: var(--muted); }
+.pv .opts i { font-family: var(--f-mono); font-style: normal; font-size: 11px; }
 .ed-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .ed-foot .left { margin-right: auto; }
 
@@ -440,7 +449,10 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <dt>[d12] [a/b/…]</dt><dd>Roll a d12 and take that option from the list.</dd>
       <dt>[do/don't]</dt><dd>A list with no die. Two options flip a coin; more roll a die of that size.</dd>
       <dt>(If do: …)</dt><dd>Only applies when an earlier roll came up “do”. Otherwise it is skipped.</dd>
+      <dt>@place a/b/c</dt><dd>A named list on its own row, anywhere in the text. Cards use it as [@place], like [d12] [@place].</dd>
+      <dt>ejectives {airstream}</dt><dd>Marks what kind of feature an option is, for lists that mix kinds. The card shows only “ejectives”.</dd>
       <dt>[ipa:rare]</dt><dd>Deal up to 20 phonemes from a pool and roll for one. Pools: common, uncommon, rare, consonant, vowel, any place, manner or vowel height, front, back, rounded, unrounded, ejective, implosive, click, coarticulated, prenasalized, aspirated, nasalized, long and more. Join them with +, like [ipa:rare+vowel].</dd>
+      <dt>family=…; needs=…</dt><dd>An optional last column of tags, separated by semicolons. family allows one card of the family in the deck. needs, effect and counts are for clash checks still to come.</dd>
     </dl>
     <div class="ed-cols">
       <textarea id="src" spellcheck="false" aria-label="Card rows"></textarea>
@@ -460,12 +472,18 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 (() => {
 'use strict';
 
-const PLACES = "[bilabial/labiodental/dental/alveolar/postalveolar/retroflex/palatal/velar/dorsal/uvular/pharyngeal/glottal]";
-const VHEIGHT = "[close/near-close/close-mid/mid/open-mid/near-open/open]";
-const VBACK = "[front/central/back]";
-const MANNER = "[plosive/nasal/trill/tap/fricative/approximant/lateral/affricate]";
-const SPECIAL = "[co-articulated/semivowels/ejectives/palatalized/labialized/aspirated/sibilant fricative/prenasalization]";
-const VFEAT = "[nasality/phonation type/length/tone]";
+// Named lists. A row starting with @ defines one; cards use it as [@place], usually after a die: [d12] [@place].
+// The name says which part of the language a roll is about. {type} after an option says what kind of feature it is,
+// for lists like @special that mix kinds.
+const LIST_ROWS = [
+  ["@place", "bilabial/labiodental/dental/alveolar/postalveolar/retroflex/palatal/velar/dorsal/uvular/pharyngeal/glottal"],
+  ["@manner", "plosive/nasal/trill/tap/fricative/approximant/lateral/affricate"],
+  ["@vheight", "close/near-close/close-mid/mid/open-mid/near-open/open"],
+  ["@vback", "front/central/back"],
+  ["@special", "co-articulated {place}/semivowels {manner}/ejectives {airstream}/palatalized {secondary}/labialized {secondary}/aspirated {laryngeal}/sibilant fricative {manner}/prenasalization {prenasalization}"],
+  ["@vfeature", "nasality/phonation type/length/tone"],
+].map((r) => r.join("\t")).join("\n");
+const PLACES = "[@place]", MANNER = "[@manner]", VHEIGHT = "[@vheight]", VBACK = "[@vback]", SPECIAL = "[@special]", VFEAT = "[@vfeature]";
 // The built-in cards. A last column of key=value pairs holds tags; family=… allows one card per family in the deck.
 const CARD_ROWS = [
   ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants", "family=consonant-count"],
@@ -547,13 +565,14 @@ const ADDED_ROWS = [
   ["Vowel Inventory", "Vowel backness limitation", "", "Allow", "at most [d2]", "[d3]", VBACK, "vowels"],
   ["Vowel Inventory", "Vowel backness symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d3]", VBACK, "vowels"],
 ].map((r) => r.join("\t")).join("\n");
-const DEFAULT_SOURCE = [CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
+const DEFAULT_SOURCE = [LIST_ROWS, CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
 // Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
 // Add the current list's fingerprint here (sourceFingerprint(DEFAULT_SOURCE)) before changing any card.
 const LEGACY_DEFAULTS = new Set([
   "b6-t4902k",   // the first 3-card version
   "4bz-1gdjhwy", // the 57 original cards
   "51d-tjrh9m",  // 57 cards plus 12 phoneme cards
+  "5fl-dhqlu9",  // Phase 1: 60 cards plus 12 phoneme cards, lists written out in each card
 ]);
 function sourceFingerprint(s) {
   let h = 0x811c9dc5;
@@ -922,7 +941,26 @@ function splitRow(line) {
   if (line.includes("|")) return line.split("|");
   return line.split(/\s{2,}/);
 }
-function compile(tpl) {
+// Feature types an option can be marked with, as in "ejectives {airstream}".
+const FEATURE_TYPES = ["place", "manner", "airstream", "laryngeal", "secondary", "prenasalization",
+  "height", "backness", "rounding", "nasality", "phonation", "length", "tone"];
+// "a/b {type}/c" -> options ["a", "b", "c"] and types [null, "type", null] (types is null when none are marked).
+function parseOptions(body) {
+  const options = [], types = [];
+  for (const raw of body.split("/")) {
+    const m = raw.trim().match(/^(.*?)\s*\{\s*([^{}]*?)\s*\}$/);
+    const o = (m ? m[1] : raw).trim();
+    if (!o) continue;
+    options.push(o);
+    types.push(m && m[2] ? m[2].toLowerCase() : null);
+  }
+  const unknownTypes = [...new Set(types.filter((t) => t && !FEATURE_TYPES.includes(t)))];
+  return { options, types: types.some(Boolean) ? types : null, unknownTypes };
+}
+function typeWarning(where, unknown) {
+  return `${where}: {${unknown.join("}, {")}} ${unknown.length === 1 ? "isn’t a feature type" : "aren’t feature types"} this tool knows. Known types: ${FEATURE_TYPES.join(", ")}.`;
+}
+function compile(tpl, lists = {}) {
   const segs = [];
   const re = /\(\s*if\s+([^:)]+):\s*([^)]*)\)/gi;
   let last = 0, m;
@@ -942,13 +980,26 @@ function compile(tpl) {
       const inner = mm[1].trim();
       const dm = inner.match(/^d(\d+)(?:\s*[*x×]\s*(\d+))?$/i);
       const pm = inner.match(/^ipa\s*:\s*(.+)$/i);
-      if (pm) toks.push({ t: "pool", spec: pm[1].trim(), cond: seg.cond });
+      const lm = inner.match(/^@([\w-]+)$/);
+      if (lm) {
+        const def = lists[lm[1].toLowerCase()];
+        if (def) toks.push({ t: "list", opts: def.options, types: def.types, list: def.name, cond: seg.cond });
+        else {
+          toks.push({ t: "text", s: mm[0], cond: seg.cond });
+          warnings.push(`There’s no list named @${lm[1]}. Define it on its own row, like “@${lm[1]}  a/b/c”.`);
+        }
+      }
+      else if (pm) toks.push({ t: "pool", spec: pm[1].trim(), cond: seg.cond });
       else if (dm) toks.push({ t: "die", n: +dm[1], mult: dm[2] ? +dm[2] : 1, cond: seg.cond });
       else if (/^\d+$/.test(inner)) {
         toks.push({ t: "text", s: inner, cond: seg.cond });
         warnings.push(`[${inner}] has no “d”, so it is a fixed ${inner}. Write [d${inner}] to roll for it.`);
       }
-      else if (inner.includes("/")) toks.push({ t: "list", opts: inner.split("/").map((x) => x.trim()).filter(Boolean), cond: seg.cond });
+      else if (inner.includes("/")) {
+        const o = parseOptions(inner);
+        if (o.unknownTypes.length) warnings.push(typeWarning(mm[0], o.unknownTypes));
+        toks.push({ t: "list", opts: o.options, types: o.types, list: null, cond: seg.cond });
+      }
       else toks.push({ t: "text", s: mm[0], cond: seg.cond });
       l = r.lastIndex;
     }
@@ -998,7 +1049,7 @@ function compile(tpl) {
       while (j < toks.length && toks[j].t === "text" && !toks[j].s.trim()) j++;
       if (j < toks.length && toks[j].t === "list" && toks[j].cond === k.cond) {
         const len = toks[j].opts.length;
-        slot = { kind: "pick", sides: k.n, options: toks[j].opts };
+        slot = { kind: "pick", sides: k.n, options: toks[j].opts, types: toks[j].types, list: toks[j].list };
         if (k.n > len) warnings.push(`d${k.n} rolls against ${len} options. Anything above ${len} is rolled again.`);
         if (k.n < len) warnings.push(`d${k.n} can only reach the first ${k.n} of ${len} options.`);
         i = j;
@@ -1017,7 +1068,7 @@ function compile(tpl) {
       }
     } else {
       const n = k.opts.length;
-      slot = { kind: n === 2 ? "choice" : "pick", sides: n, options: k.opts, implicit: true };
+      slot = { kind: n === 2 ? "choice" : "pick", sides: n, options: k.opts, types: k.types, list: k.list, implicit: true };
     }
     if (slot.sides < 2 && !(slot.kind === "pool" && !slot.poolSize)) warnings.push(slot.kind === "pool" ? `[ipa:${slot.spec}] matches only one phoneme.` : `A d${slot.sides} has only one result.`);
     slot.sides = Math.max(1, slot.sides);
@@ -1029,9 +1080,17 @@ function compile(tpl) {
   if (!slots.length) warnings.push("No dice in this rule, so there is nothing to roll.");
   return { parts, slots, warnings };
 }
-// The optional last column: key=value pairs separated by semicolons, like "family=consonant-count".
+// The optional last column: key=value pairs separated by semicolons, like "family=consonant-count; counts=consonants".
 const TAG_COLUMN = /^[a-z][\w-]*\s*=\s*[^;=]+(\s*;\s*[a-z][\w-]*\s*=\s*[^;=]+)*\s*;?$/i;
-const KNOWN_TAGS = ["family"];
+const KNOWN_TAGS = ["family", "needs", "effect", "counts"];
+// Tags whose value must come from a fixed list. The others take any value.
+const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count"] };
+const TAG_HELP = {
+  family: "Only one card of this family can be in the deck.",
+  needs: "Stays out of the pile until the deck has this.",
+  effect: "How the roll changes the language.",
+  counts: "Which total a number roll sets.",
+};
 function parseTags(col) {
   const out = {};
   for (const pair of col.split(";")) {
@@ -1040,21 +1099,52 @@ function parseTags(col) {
   }
   return out;
 }
+// Problems with a card's tags, by key. Unknown keys and values outside TAG_VALUES both count.
+function tagIssues(tags) {
+  const out = {};
+  for (const [k, v] of Object.entries(tags)) {
+    if (!KNOWN_TAGS.includes(k)) out[k] = `Unknown tag “${k}”. Known tags: ${KNOWN_TAGS.join(", ")}.`;
+    else if (TAG_VALUES[k] && !TAG_VALUES[k].includes(v)) out[k] = `${k}=${v} isn’t a known ${k}. Use one of: ${TAG_VALUES[k].join(", ")}.`;
+  }
+  return out;
+}
+// A row like "@place  bilabial/dental/…" (brackets optional) defines a named list.
+function parseListRow(t) {
+  const m = t.match(/^@([\w-]*)[\s|]*(.*)$/);
+  const name = m[1].toLowerCase();
+  let body = m[2].replace(/[\t|]+/g, " ").trim();
+  if (/^\[.*\]$/.test(body)) body = body.slice(1, -1).trim();
+  return { name, ...parseOptions(body) };
+}
 function parseLibrary(src) {
-  const cards = [], problems = [];
-  src.split(/\r?\n/).forEach((raw, ln) => {
+  const cards = [], problems = [], lists = {};
+  const rows = src.split(/\r?\n/);
+  // Lists first, so a card can use a list defined further down.
+  rows.forEach((raw, ln) => {
     const t = raw.trim();
-    if (!t || t.startsWith("#")) return;
+    if (!t.startsWith("@")) return;
+    const def = parseListRow(t);
+    if (!/^[a-z][\w-]*$/.test(def.name)) { problems.push({ line: ln + 1, msg: "A list name starts with a letter, like @place." }); return; }
+    if (lists[def.name]) { problems.push({ line: ln + 1, msg: `@${def.name} is already defined on row ${lists[def.name].line}, so this row is skipped.` }); return; }
+    if (!def.options.length) { problems.push({ line: ln + 1, msg: `@${def.name} has no options. Separate them with /, like “@${def.name}  a/b/c”.` }); return; }
+    def.line = ln + 1;
+    def.warnings = def.unknownTypes.length ? [typeWarning("@" + def.name, def.unknownTypes)] : [];
+    if (def.options.length < 2) def.warnings.push(`@${def.name} has only one option, so rolling on it always gives “${def.options[0]}”.`);
+    lists[def.name] = def;
+  });
+  rows.forEach((raw, ln) => {
+    const t = raw.trim();
+    if (!t || t.startsWith("#") || t.startsWith("@")) return;
     const cols = splitRow(raw).map((s) => s.trim());
     while (cols.length && !cols[cols.length - 1]) cols.pop();
     const tags = cols.length > 3 && TAG_COLUMN.test(cols[cols.length - 1]) ? parseTags(cols.pop()) : {};
     if (cols.length < 3) { problems.push({ line: ln + 1, msg: "Needs at least three columns: category, name and rule." }); return; }
     const [category, name, ...rest] = cols;
-    const card = compile(rest.filter(Boolean).join(" "));
+    const card = compile(rest.filter(Boolean).join(" "), lists);
     card.tags = tags;
+    card.tagIssues = tagIssues(tags);
     card.family = tags.family || null;
-    const unknownTags = Object.keys(tags).filter((k) => !KNOWN_TAGS.includes(k));
-    if (unknownTags.length) card.warnings.push(`Unknown tag${unknownTags.length === 1 ? "" : "s"}: ${unknownTags.join(", ")}. Known tags: ${KNOWN_TAGS.join(", ")}.`);
+    card.warnings.push(...Object.values(card.tagIssues));
     card.category = category || "Uncategorized";
     card.name = name || "Untitled";
     const info = catInfo(card.category);
@@ -1065,7 +1155,7 @@ function parseLibrary(src) {
     card.line = ln + 1;
     cards.push(card);
   });
-  return { cards, problems };
+  return { cards, problems, lists };
 }
 
 /* ---------- Rendering a rule ---------- */
@@ -1146,6 +1236,20 @@ function rollSummary(card, values) {
       return `d${v.of} → ${v.n} · /${v.sym}/${p ? ` · ${fmtPct(p.pct)} of languages` : ""}`;
     }
     return `${dieName(s)} → ${v.n} · ${v.label}`;
+  });
+}
+// What each roll landed on, with the named list and feature type behind it. Stored on deck entries
+// as entry.rolled for the language profile (plan, Phase 3), so it doesn't have to re-read the card text.
+function rolledFacts(card, values) {
+  return card.slots.map((s, i) => {
+    const v = values[i];
+    if (!v || v.skipped) return { skipped: true };
+    if (s.kind === "number") return { kind: "number", value: Number(v.label) };
+    if (s.kind === "pool") return { kind: "pool", value: v.sym || null };
+    const f = { kind: s.kind, value: v.label };
+    if (s.list) f.list = s.list;
+    if (s.types && s.types[v.n - 1]) f.type = s.types[v.n - 1];
+    return f;
   });
 }
 
@@ -1655,6 +1759,7 @@ function keep() {
     text: ruleText(c.card, c.values),
     html: ruleHTMLDone(c.card, c.values),
     rolls: rollSummary(c.card, c.values),
+    rolled: rolledFacts(c.card, c.values),
     createdAt: Date.now(),
   };
   const syms = c.values.filter((v) => v && v.sym).map((v) => v.sym);
@@ -1841,14 +1946,32 @@ async function saveSource(src) {
 
 /* ---------- Editor ---------- */
 function renderPreview() {
-  const { cards, problems } = parseLibrary($("src").value);
+  const { cards, problems, lists } = parseLibrary($("src").value);
+  const defs = Object.values(lists);
+  const used = {};
+  for (const c of cards) for (const sl of c.slots) if (sl.list) used[sl.list] = (used[sl.list] || 0) + 1;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const out = [];
-  out.push(`<div class="pv meta">${cards.length} card${cards.length === 1 ? "" : "s"} ready${problems.length ? ` · ${problems.length} row${problems.length === 1 ? "" : "s"} skipped` : ""}</div>`);
+  out.push(`<div class="pv meta">${plural(cards.length, "card")} ready${defs.length ? ` · ${plural(defs.length, "list")}` : ""}${problems.length ? ` · ${plural(problems.length, "row")} skipped` : ""}</div>`);
   for (const p of problems) out.push(`<div class="pv"><span class="warn">Row ${p.line}: ${esc(p.msg)}</span></div>`);
+  for (const d of defs) {
+    const opts = d.options.map((o, i) => esc(o) + (d.types && d.types[i] ? ` <i>{${esc(d.types[i])}}</i>` : "")).join(" / ");
+    const n = used[d.name] || 0;
+    out.push(`<div class="pv"><b>@${esc(d.name)}</b>
+      <div class="meta">${plural(d.options.length, "option")} · ${n ? `used ${n === 1 ? "once" : n + " times"}` : "not used by any card"}</div>
+      <div class="opts">${opts}</div>
+      ${d.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>`);
+  }
   for (const c of cards) {
+    const tags = Object.entries(c.tags).map(([k, v]) => {
+      const bad = c.tagIssues[k];
+      return `<span class="tag${bad ? " bad" : ""}" title="${esc(bad || TAG_HELP[k] || "")}">${esc(k)}=${esc(v)}</span>`;
+    }).join("");
+    const dice = c.slots.map((sl) => dieName(sl) + (sl.list ? " @" + sl.list : "")).join(", ") || "no dice";
     out.push(`<div class="pv"><b style="color:${c.suit}">${esc(c.rank)}</b> · <b>${esc(c.name)}</b>
-      <div class="meta">${esc(c.category)} · ${c.slots.map(dieName).join(", ") || "no dice"}</div>
+      <div class="meta">${esc(c.category)} · ${esc(dice)}</div>
       <div>${ruleHTML(c, [], -1).replace(/<span class="slot[^"]*" data-i="\d+">/g, '<span class="slot">')}</div>
+      ${tags ? `<div class="tags">${tags}</div>` : ""}
       ${c.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>`);
   }
   $("preview").innerHTML = out.join("");

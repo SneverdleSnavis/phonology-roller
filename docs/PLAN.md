@@ -6,9 +6,10 @@ As of 2026-11-04. Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5P
 
 - **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards (now 60 after the Phase 1 split), the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
 - **Phase 4, started early (profile-free part):** 12 phoneme mandate cards, the `[ipa:…]` pool syntax (feature terms joined with `+`), the bundled PHOIBLE 2.0 table (871 segments), a dealt hand of up to 20, and the phoneme name on the card. Kept cards store their phonemes in `entry.phonemes` for the profile to read later. Not done yet: filtering pools against the profile and the feature write-back, which wait on Phase 3.
-- **Phase 1, done:** the fixes table is applied to the card list (except the Include special feature tags, which need Phase 2's tags syntax). Rows take an optional last column of `key=value` tags; only `family=` is read so far. The 3 consonant count cards and the 3 vowel count cards are families: keeping one sets the others aside (a count shows under the pile), and they return when it leaves the deck. Saved piles, decks and cards in play from the old list carry over.
+- **Phase 1, done:** the fixes table is applied to the card list (the Include special feature tags followed in Phase 2). Rows take an optional last column of `key=value` tags; only `family=` is read so far. The 3 consonant count cards and the 3 vowel count cards are families: keeping one sets the others aside (a count shows under the pile), and they return when it leaves the deck. Saved piles, decks and cards in play from the old list carry over.
 - **Ideas only:** curse and power-up cards (Phase 7), added 2026-11-04. Nothing decided yet, names included.
-- **Not started:** everything else below. **Next step: Phase 2** (syntax: named lists, the rest of the tags, and the editor preview showing tags).
+- **Phase 2, done:** `@name` rows define named lists, and cards use them as `[@name]`. The built-in cards now use `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`, with no change to any card's wording or dice. Options can carry a `{type}` mark; `@special` uses it for the Include special fix. The parser reads and checks `needs`, `effect` (one of the six values below) and `counts`, but only `family` changes play. `needs` and `counts` take any value until Phase 3 settles their vocabulary. The Edit cards preview lists each named list (options, types, how many cards use it) and each card's tags, with unknown tags, effects, lists and types flagged. Kept cards now store `entry.rolled` (each roll's value, list and type) for the profile to read; cards kept before this only have their text.
+- **Not started:** everything else below. **Next step: Phase 3** (profile and clash checks). The built-in cards carry no `needs`, `effect` or `counts` tags yet; adding them is the first part of Phase 3, once it's clear what each area of the profile reads.
 
 ## Summary
 
@@ -132,7 +133,7 @@ The 57 cards cover places, manners, counts and metrical stress well. These areas
 
 These are changes to your card list, not to the tool. The clash checks depend on the first four.
 
-Applied in Phase 1, except the Include special feature tags, which wait for the tags syntax in Phase 2. Decisions: seven IPA heights on a d7, each vowel position card split into a height card and a backness card (3 new cards), nasals as the sixth Final constraint option, and `[d10]` for Phoneme neutralization. Special limitations reads "Limit [ejectives] to at most [d2] consonants" so every option fits the sentence.
+Applied in Phase 1. The Include special feature tags followed in Phase 2: co-articulated is marked place, semivowels and sibilant fricative manner, ejectives airstream, palatalized and labialized secondary, aspirated laryngeal, and prenasalization its own type. Decisions: seven IPA heights on a d7, each vowel position card split into a height card and a backness card (3 new cards), nasals as the sixth Final constraint option, and `[d10]` for Phoneme neutralization. Special limitations reads "Limit [ejectives] to at most [d2] consonants" so every option fits the sentence.
 
 | Card(s) | Problem | Suggested fix |
 | --- | --- | --- |
@@ -159,6 +160,8 @@ Your spreadsheet format stays the same. Three additions let the tool understand 
 @vheight  close/near-close/close-mid/mid/open-mid/near-open/open
 ```
 
+**Option types.** In a list that mixes kinds, a type in braces after an option says what kind of feature it is, such as `ejectives {airstream}`. The card shows only "ejectives". The built-in `@special` list is the only one that uses this so far.
+
 **Phoneme pools.** `[ipa:rare]`, `[ipa:uncommon]`, `[ipa:common]`, `[ipa:coarticulated]`, or a feature pool such as `[ipa:ejective]`.
 
 **A tags column** at the end of the row, written as `key=value` pairs separated by semicolons:
@@ -184,7 +187,7 @@ Rows without tags still work, so your list can be upgraded a little at a time. U
 Each phase ships on its own and leaves the roller usable.
 
 1. **Card fixes and families.** Apply the fixes table to the card list. Add `family=` tags, and remove a card's siblings from the pile when it is kept. No profile is needed yet. Done: consonant-count and vowel-count families, with a "set aside" count under the pile.
-2. **Syntax.** Add named lists, the tags column and phoneme-pool syntax to the parser. The Edit cards preview shows each card's tags and flags unknown ones.
+2. **Syntax.** Add named lists, the tags column and phoneme-pool syntax to the parser. The Edit cards preview shows each card's tags and flags unknown ones. Done: @name list rows used as [@name], {type} marks on options, the needs, effect and counts tags (read and checked, but they don't change play yet), and a preview of every list and tag. Kept cards now also store each roll with its list and type, for the profile to read.
 3. **Profile and clash checks.** Build the profile from the deck. Add the four clash kinds, pile filtering with the "set aside" list, crossed-out options and shrinking dice. Show the profile as a panel beside the deck.
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back.
 5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps.

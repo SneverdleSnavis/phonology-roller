@@ -1,4 +1,5 @@
-// Parser check: fills every built-in card with random rolls (dealing phoneme hands too) and prints the result.
+// Parser check: fills every built-in card with random rolls (dealing phoneme hands too) and prints the result,
+// plus the named lists, tags and families the card list uses.
 // Usage: node scripts/check-cards.js [path/to/phonology-challenge.html]
 //
 // It pulls the pure parsing and rendering code out of the page (everything between
@@ -15,8 +16,13 @@ if (a < 0 || b < 0) throw new Error("Couldn't find the parser section markers in
 const harness = `
 globalThis.matchMedia = () => ({ matches: false });
 ${html.slice(a, b)}
-const { cards, problems } = parseLibrary(DEFAULT_SOURCE);
+const { cards, problems, lists } = parseLibrary(DEFAULT_SOURCE);
 console.log(cards.length + " cards" + (problems.length ? ", problems: " + JSON.stringify(problems) : ""));
+for (const d of Object.values(lists)) {
+  const uses = cards.reduce((n, c) => n + c.slots.filter((s) => s.list === d.name).length, 0);
+  const typed = d.types ? " · types: " + d.options.map((o, i) => o + (d.types[i] ? "=" + d.types[i] : "")).join(", ") : "";
+  console.log("@" + d.name.padEnd(9) + " " + d.options.length + " options, used " + uses + "x" + typed + (d.warnings.length ? "  !! " + d.warnings.join(" / ") : "") + (uses ? "" : "  !! not used"));
+}
 let warned = 0;
 for (const c of cards) {
   const values = [];
@@ -44,6 +50,9 @@ for (const c of cards) {
 console.log(warned + " card(s) with warnings");
 const fams = {};
 for (const c of cards) if (c.family) (fams[c.family] = fams[c.family] || []).push(c.name);
+const tagged = {};
+for (const c of cards) for (const k of Object.keys(c.tags)) tagged[k] = (tagged[k] || 0) + 1;
+console.log("Tags: " + (Object.entries(tagged).map(([k, n]) => k + " on " + n).join(", ") || "none"));
 console.log("Families: " + (Object.entries(fams).map(([f, n]) => f + " (" + n.join(", ") + ")").join("; ") || "none"));
 const ids = new Set(cards.map((c) => c.id));
 const lost = Object.values(RENAMED_IDS).filter((id) => !ids.has(id));
