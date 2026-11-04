@@ -1,6 +1,6 @@
 # Phonology Challenge roller: working notes
 
-Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (Phase 6 is done; Phase 7, curses and power-ups, waits on the user's answers). "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" explain the profile, the modifier cards and the interpretations the user still has to confirm.
+Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (Phase 6 is done; Phase 7, curses and power-ups, is decided and ready to build, see "Curses and power-ups"). "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" explain the profile, the modifier cards and the interpretations the user still has to confirm.
 
 ## The app
 

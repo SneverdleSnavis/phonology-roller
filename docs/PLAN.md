@@ -1,18 +1,18 @@
 # Phonology Challenge: card expansion plan
 
-As of 2026-11-04 (Phase 6 done, Phase 7 partly decided). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
+As of 2026-11-04 (Phase 6 done, Phase 7 decided and ready to build). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
 
 ## Where things stand
 
 - **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards (now 60 after the Phase 1 split), the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
 - **Phase 4, done:** 12 phoneme mandate cards, the `[ipa:…]` pool syntax (feature terms joined with `+`), the bundled PHOIBLE 2.0 table (871 segments), a dealt hand of up to 20, and the phoneme name on the card. Since Phase 3, hands are dealt only from phonemes that fit the profile, and a kept phoneme writes its features back (see "Phase 3 as built").
 - **Phase 1, done:** the fixes table is applied to the card list (the Include special feature tags followed in Phase 2). Rows take an optional last column of `key=value` tags; only `family=` is read so far. The 3 consonant count cards and the 3 vowel count cards are families: keeping one sets the others aside (a count shows under the pile), and they return when it leaves the deck. Saved piles, decks and cards in play from the old list carry over.
-- **Phase 7, partly decided:** curse and power-up cards. Settled 2026-11-04: Phase 6 modifiers merge into power-ups (tokens you spend when you choose), curses never make the language easier, cursed cards stay cursed, the names stay, and stronger power-ups get fewer copies in the pile. See "Curses and power-ups".
+- **Phase 7, decided:** curse and power-up cards. Settled 2026-11-04: Phase 6 modifiers merge into power-ups (tokens you spend when you choose), curses never make the language easier, cursed cards stay cursed, the names stay, power-ups and curses come in several copies (fewer for stronger ones), the game layer is a setting, curses stack, you hold at most 3 tokens, the curse counter counts kept cards, and discarding a curse costs a Discard token. See "Curses and power-ups".
 - **Phase 2, done:** `@name` rows define named lists, and cards use them as `[@name]`. The built-in cards now use `@place`, `@manner`, `@vheight`, `@vback`, `@special` and `@vfeature`, with no change to any card's wording or dice. Options can carry a `{type}` mark; `@special` uses it for the Include special fix. The parser reads and checks `needs`, `effect` (one of the six values below) and `counts`, but only `family` changes play. `needs` and `counts` take any value until Phase 3 settles their vocabulary. The Edit cards preview lists each named list (options, types, how many cards use it) and each card's tags, with unknown tags, effects, lists and types flagged. Kept cards now store `entry.rolled` (each roll's value, list and type) for the profile to read; cards kept before this only have their text.
 - **Phase 3, done:** every built-in card that writes to the language now carries `effect`, `counts`, `feature` or `needs` tags. The profile is rebuilt from the deck on every change and shown in a panel beside the deck. Clashing options are struck through and the die shrinks to what's left, a slot with one value left is set without a roll (with the reason on the card), and the pile sets aside cards whose family is taken, whose `needs` is missing, or that have no roll that fits. The set-aside list, with a reason for each card, is in the profile panel. Details and the interpretations behind the checks are in "Phase 3 as built".
 - **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
 - **Phase 6, done:** 3 modifier cards (96 in all): Re-roll, Flip and Free pick, marked with a new `modifier=` tag. Re-roll and Flip change a kept card, checked against the deck without it, and save over the old entry with a note of what it said before. Free pick gives a token for choosing the next option yourself. Consonant harmony now has a `[do/don't]`. Details and the interpretations behind them are in "Phase 6 as built".
-- **Not started:** building Phase 7. **Next step:** the user confirms the proposed power-up copies and the "Recommended, not yet confirmed" list under "Curses and power-ups", and says whether curse cards also come in several copies. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need checking too.
+- **Not started:** building Phase 7. **Next step:** build it in a fresh session, following "Curses and power-ups" and the order under "Build phases". The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check.
 
 ## Summary
 
@@ -111,9 +111,16 @@ A game layer on top of the roller. Both kinds are shuffled into the pile and dra
 - **One Re-roll token covers both uses.** It re-rolls one die on the card in play or on a kept card. There is no separate Re-roll power-up.
 - **Curses never make the language easier.** A curse pushes toward a bigger or more marked language. So Multiplier skips ceiling (`effect=at-most`) cards, where a bigger number would loosen the limit.
 - **Cursed cards stay cursed.** A card kept under a curse keeps its cursed wording and values for good, and its entry notes the curse ("cursed by Exact count"). Re-rolling or flipping it later works on the cursed card, not the plain one. Cleanse ends an active curse but doesn't undo kept cards.
-- **Several copies of each power-up card, by strength.** The stronger the power-up, the fewer copies in the pile.
+- **Several copies of each power-up and curse card.** The stronger the power-up, or the harsher the curse, the fewer copies in the pile.
+- **Game layer is a setting.** Off: no curse cards, no Discard or Cleanse cards, free discards, no token cap. Re-roll, Flip and Free pick still come up as tokens.
+- **Stacking.** Different curses stack. Drawing a curse that's already active resets its counter instead of doubling it.
+- **Token cap of 3** (in all), since paid discards encourage hoarding.
+- **The curse counter counts kept cards, not draws,** so discarding doesn't run a curse down.
+- **Curses can't be discarded for free.** Discarding one costs a Discard token; Cleanse is the proper answer.
 
-**Proposed copies** (to confirm):
+### Copies
+
+Copies come from a `copies=N` tag on the card row rather than repeated rows, so the Edit cards table stays one row per card and the numbers can be tuned there. In the pile each copy gets its own id (`c93-re-roll#2`), and a used copy stays out of the pile until the next reshuffle, as modifiers do now.
 
 | Power-up | What the token does | Strength | Copies |
 | --- | --- | --- | --- |
@@ -123,25 +130,28 @@ A game layer on top of the roller. Both kinds are shuffled into the pile and dra
 | Cleanse | End one active curse | Removes a curse's remaining draws | 2 |
 | Flip | Turn a kept card's do into don't, or back | Reverses a whole card, no luck involved | 1 |
 
-That's 12 power-up cards, about 11% of a 108-card pile. Copies would come from a `copies=N` tag on the card row rather than repeated rows, so the Edit cards table stays one row per card and you can tune the numbers there. In the pile each copy gets its own id (`c93-re-roll#2`), and a used copy stays out of the pile until the next reshuffle, as modifiers do now.
+The power-up counts are confirmed. The curse counts below are a starting point (the user asked for several copies but gave no numbers); tune them with `copies=`.
 
 ### Curses
 
-| Curse | Effect | Notes |
-| --- | --- | --- |
-| Exact count | Ceiling cards become exact counts: "Allow at most 3 velar consonants" becomes "Include exactly 3 velar consonants" | Only 7 of 96 cards are ceilings, so a d12-draw curse would often do nothing. It should last for a number of ceiling cards instead (say the next 2). 6 of the 7 say "at most"; Maximum syllable ("Cap the onset at…") needs its own cursed wording. |
-| Multiplier | Number rolls get a multiplier, such as ×[d3] | Raises the slot's existing `mult` (the `[d4*2]` syntax). Skips ceiling cards. |
-| Long odds | Rarer outcomes come up more often | Clear for phoneme hands (deal from the rare band first). Lists like places and manners have no frequencies yet; they could be worked out from the bundled PHOIBLE table, or the curse could cover phoneme cards only. |
+| Curse | Effect | Notes | Copies |
+| --- | --- | --- | --- |
+| Exact count | Ceiling cards become exact counts: "Allow at most 3 velar consonants" becomes "Include exactly 3 velar consonants" | Mildest, since only 7 of the 93 language cards are ceilings. A d12-kept-cards curse would often do nothing, so it lasts for the next 2 ceiling cards instead. 6 of the 7 say "at most"; Maximum syllable ("Cap the onset at…") needs its own cursed wording. | 3 |
+| Long odds | Rarer outcomes come up more often | Clear for phoneme hands (deal from the rare band first). Lists like places and manners have no frequencies yet; they could be worked out from the bundled PHOIBLE table, or the curse could cover phoneme cards only. | 2 |
+| Multiplier | Number rolls get a multiplier, such as ×[d3] | Harshest. Raises the slot's existing `mult` (the `[d4*2]` syntax). Skips ceiling cards. | 2 |
+
+With game layer on, the pile has 93 language cards, 12 power-up cards and 7 curse cards: 112 in all, so about 1 draw in 9 is a power-up and 1 in 16 a curse. With it off, 93 language cards and 6 power-up cards (Free pick, Re-roll, Flip).
 
 Cursed results still pass the clash checks, so an exact count can't go over the inventory budget. While a curse is active, the pile filter judges cards as cursed: a card that fits as a ceiling but not as an exact count is set aside with the curse as the reason, and comes back when the curse ends.
 
-### Recommended, not yet confirmed
+### Small details for the build session
 
-- **Game layer is a setting.** Off: no curse cards, no Discard or Cleanse cards, free discards, no token cap. Re-roll, Flip and Free pick still come up as tokens.
-- **Stacking.** Different curses stack. Drawing a curse that's already active resets its counter instead of doubling it.
-- **Token cap of 3** (in all), since paid discards encourage hoarding.
-- **The curse counter counts kept cards, not draws,** so discarding doesn't run a curse down.
-- **Curses can't be discarded for free.** Discarding one costs a Discard token; Cleanse is the proper answer.
+These aren't settled. Pick a sensible default, build it, and list it under "Phase 7 as built" for the user to check.
+
+- What happens when you draw a power-up while holding 3 tokens: suggested, you choose one token to give up (which may be the new one).
+- Exact count lasting "the next 2 ceiling cards" rather than [d12] kept cards.
+- Whether Long odds covers lists too (frequencies from PHOIBLE) or only phoneme hands.
+- How the curse counter and tokens are saved: game state like the pile (`localStorage` keys, or prefs in `db`), not part of the profile.
 
 ### More ideas (not decided)
 
@@ -334,7 +344,11 @@ Each phase ships on its own and leaves the roller usable.
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back. Done.
 5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps. Done: 21 cards, `effect=gap`, several totals per `counts=`, and implications between features.
 6. **Modifier cards.** Add cards that act on the deck, with a re-check of the profile after each change. Done: Re-roll, Flip and Free pick, `modifier=` tags, and changes saved over the kept entry.
-7. **Game layer.** Turn Re-roll, Flip and Free pick into power-up tokens, add Discard and Cleanse, a `copies=` tag, the curse cards and counter, paid discards and the game-layer setting. Partly decided; see "Curses and power-ups".
+7. **Game layer.** Decided; see "Curses and power-ups". Suggested order, each step leaving the roller usable:
+    1. `copies=` tag and copy ids in the pile.
+    2. Re-roll, Flip and Free pick become tokens, with a token row and the cap of 3. Re-roll also works on the card in play.
+    3. The game-layer setting, Discard and Cleanse cards, and paid discards.
+    4. Curse cards, the counter, and the pile filter judging cards as cursed. Exact count first, then Multiplier, then Long odds.
 
 ## Open questions
 
@@ -346,8 +360,8 @@ Each phase ships on its own and leaves the roller usable.
 - [x] Does a kept card keep its cursed wording for good? Answered: yes, including when it's re-rolled or flipped later.
 - [x] Should Phase 6 modifiers and Phase 7 power-ups merge? Answered: yes, every modifier becomes a token.
 - [x] Can a curse make the language easier? Answered: no.
-- [ ] Can curses stack? Recommended: different curses stack; a repeat resets the counter.
-- [ ] Should the game layer be a setting, so the plain roller (free discards, no curses) stays available? Recommended: yes.
-- [ ] Is there a limit on how many power-up tokens you can hold? Recommended: 3 in all.
-- [ ] How many copies of each power-up card? Proposed: Discard 4, Free pick 3, Re-roll 2, Cleanse 2, Flip 1. Do curse cards also come in several copies?
+- [x] Can curses stack? Answered: different curses stack; a repeat resets the counter.
+- [x] Should the game layer be a setting, so the plain roller (free discards, no curses) stays available? Answered: yes.
+- [x] Is there a limit on how many power-up tokens you can hold? Answered: 3 in all.
+- [x] How many copies of each power-up card? Answered: Discard 4, Free pick 3, Re-roll 2, Cleanse 2, Flip 1. Curses come in several copies too (starting at Exact count 3, Long odds 2, Multiplier 2).
 - [x] Should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split? Answered: all seven, on a d7.
