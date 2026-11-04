@@ -18,7 +18,7 @@ Keyboard: `D` draw, `R` roll, `K` keep.
 
 | Path | What it is |
 | --- | --- |
-| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 69 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
+| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 72 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
 | `docs/PLAN.md` | The card expansion plan: language profile, clash checks, phoneme cards, new card types, fixes, build phases. |
 | `scripts/check-cards.js` | Runs the card parser in Node over every built-in card with random rolls and prints the sentences and warnings. |
 | `scripts/build-phonemes.js` | Rebuilds the phoneme table in the page from the PHOIBLE 2.0 CSV. |
@@ -37,6 +37,7 @@ Cards are rows pasted from a spreadsheet, separated by tabs (or `|`): category, 
 | `[do/don't]`, `[L/R]` | A list with no die. Two options flip a coin; more roll a die of that size. |
 | `(If do: …)` | Only applies when an earlier roll came up "do". |
 | `[10]` | A fixed number, nothing to roll (the editor warns about it). |
+| `family=consonant-count` | An optional last column of tags (`key=value`, separated by `;`). Only one card per family can be in the deck: keeping one sets the rest aside until it leaves. |
 | `[ipa:rare]`, `[ipa:front+rounded]` | Deal up to 20 phonemes that have every listed feature, then roll for one. Terms: `common`, `uncommon`, `rare`, `consonant`, `vowel`, any place, manner or vowel height, `front`/`central`/`back`, `rounded`/`unrounded`, `ejective`, `implosive`, `click`, `coarticulated`, `prenasalized`, `aspirated`, `nasalized`, `long` and more. Phonemes already in your deck aren't dealt again. |
 
 Edit the card list in the app with **Edit cards**. It shows a live preview and flags problems. Run the parser check from the repo root:

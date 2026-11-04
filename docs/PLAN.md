@@ -4,10 +4,10 @@ As of 2026-11-04. Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5P
 
 ## Where things stand
 
-- **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards, the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
+- **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards (now 60 after the Phase 1 split), the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
 - **Phase 4, started early (profile-free part):** 12 phoneme mandate cards, the `[ipa:…]` pool syntax (feature terms joined with `+`), the bundled PHOIBLE 2.0 table (871 segments), a dealt hand of up to 20, and the phoneme name on the card. Kept cards store their phonemes in `entry.phonemes` for the profile to read later. Not done yet: filtering pools against the profile and the feature write-back, which wait on Phase 3.
-- **Not started:** everything else below. **Next step: Phase 1** (card fixes and families), unless phoneme cards continue first.
-- **Unanswered question from the doc:** should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split?
+- **Phase 1, done:** the fixes table is applied to the card list (except the Include special feature tags, which need Phase 2's tags syntax). Rows take an optional last column of `key=value` tags; only `family=` is read so far. The 3 consonant count cards and the 3 vowel count cards are families: keeping one sets the others aside (a count shows under the pile), and they return when it leaves the deck. Saved piles, decks and cards in play from the old list carry over.
+- **Not started:** everything else below. **Next step: Phase 2** (syntax: named lists, the rest of the tags, and the editor preview showing tags).
 
 ## Summary
 
@@ -112,6 +112,8 @@ The 57 cards cover places, manners, counts and metrical stress well. These areas
 
 These are changes to your card list, not to the tool. The clash checks depend on the first four.
 
+Applied in Phase 1, except the Include special feature tags, which wait for the tags syntax in Phase 2. Decisions: seven IPA heights on a d7, each vowel position card split into a height card and a backness card (3 new cards), nasals as the sixth Final constraint option, and `[d10]` for Phoneme neutralization. Special limitations reads "Limit [ejectives] to at most [d2] consonants" so every option fits the sentence.
+
 | Card(s) | Problem | Suggested fix |
 | --- | --- | --- |
 | All 3 vowel position cards | "High" and "close" name the same height, as do "mid-high" and "mid-close". There is no low or open option, and height and backness share one list. | Split into a height list [close/near-close/close-mid/mid/open-mid/near-open/open] and a backness list [front/central/back]. |
@@ -161,7 +163,7 @@ Rows without tags still work, so your list can be upgraded a little at a time. U
 
 Each phase ships on its own and leaves the roller usable.
 
-1. **Card fixes and families.** Apply the fixes table to the card list. Add `family=` tags, and remove a card's siblings from the pile when it is kept. No profile is needed yet.
+1. **Card fixes and families.** Apply the fixes table to the card list. Add `family=` tags, and remove a card's siblings from the pile when it is kept. No profile is needed yet. Done: consonant-count and vowel-count families, with a "set aside" count under the pile.
 2. **Syntax.** Add named lists, the tags column and phoneme-pool syntax to the parser. The Edit cards preview shows each card's tags and flags unknown ones.
 3. **Profile and clash checks.** Build the profile from the deck. Add the four clash kinds, pile filtering with the "set aside" list, crossed-out options and shrinking dice. Show the profile as a panel beside the deck.
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back.
@@ -173,5 +175,5 @@ Each phase ships on its own and leaves the roller usable.
 - [ ] A do/don't card where one side is crossed out has a forced result. Should it stay in the pile, or be set aside as a dud?
 - [ ] For phoneme pools, is a dealt hand of 20 right, or would a two-stage roll (class first, then phoneme) feel better?
 - [ ] Should a challenge set have a fixed size, for example 12 cards with a target mix per category?
-- [ ] Which option should replace the sixth face of Final constraint, or should it become a d5?
-- [ ] Should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split?
+- [x] Which option should replace the sixth face of Final constraint, or should it become a d5? Answered: nasals is the sixth option.
+- [x] Should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split? Answered: all seven, on a d7.

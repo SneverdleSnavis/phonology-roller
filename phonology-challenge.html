@@ -460,69 +460,66 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 (() => {
 'use strict';
 
-const OLD_DEFAULT = [
-  "Consonant Inventory\tPlace neutralization\t\tInclude\tthe neutralization of\t[d12]\t[bilabial/labiodental/dental/alveolar/postalveolar/retroflex/palatal/velar/dorsal/uvular/pharyngeal/glottal]",
-  "Consonant Inventory\tTotal minor places\t\tContrast\t[d8] minor places of articulation",
-  "Vowel Inventory\tInclude vowel position\t[do/don't]\tInclude\t(If do: [d10])\t[d8]\t[high/mid-high/mid/mid-close/close/front/central/back]"
-].join("\n");
 const PLACES = "[bilabial/labiodental/dental/alveolar/postalveolar/retroflex/palatal/velar/dorsal/uvular/pharyngeal/glottal]";
-const VPOS = "[high/mid-high/mid/mid-close/close/front/central/back]";
+const VHEIGHT = "[close/near-close/close-mid/mid/open-mid/near-open/open]";
+const VBACK = "[front/central/back]";
 const MANNER = "[plosive/nasal/trill/tap/fricative/approximant/lateral/affricate]";
 const SPECIAL = "[co-articulated/semivowels/ejectives/palatalized/labialized/aspirated/sibilant fricative/prenasalization]";
 const VFEAT = "[nasality/phonation type/length/tone]";
-const BASE_DEFAULT = [
-  ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants"],
+// The built-in cards. A last column of key=value pairs holds tags; family=… allows one card per family in the deck.
+const CARD_ROWS = [
+  ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants", "family=consonant-count"],
   ["Vowel Realizations", "Vowel Allophones", "", "Include", "[d8] vowels with allophones"],
-  ["Inventory", "Phoneme neutralization", "", "Include", "[10] phonemes neutralized in certain environments"],
+  ["Inventory", "Phoneme neutralization", "", "Include", "[d10] phonemes neutralized in certain environments"],
   ["Consonant Inventory", "Place neutralization", "", "Include", "the neutralization of", "[d12]", PLACES],
   ["Consonant Inventory", "Total minor places", "", "Contrast", "[d8] minor places of articulation"],
-  ["Vowel Inventory", "Include vowel position", "[do/don't]", "Include", "(If do: [d10])", "[d8]", VPOS],
+  ["Vowel Inventory", "Include vowel height", "[do/don't]", "Include", "(If do: [d10])", "[d7]", VHEIGHT, "vowels"],
   ["Stress", "Primary stress", "", "Include", "[L/R]-most foot as primary stress"],
   ["Stress", "Foot directionality", "", "Include", "start feet from [L/R] edge"],
   ["Stress", "Pitch accent", "[do/don't]", "Include", "pitch accent"],
-  ["Consonant Inventory", "Consonant Count Medium", "", "Include", "10+[d30] consonants"],
+  ["Consonant Inventory", "Consonant Count Medium", "", "Include", "10+[d30] consonants", "family=consonant-count"],
   ["Vowel Realizations", "Vowel rules", "[do/don't]", "Include", "rules for", "[d3]", "[deletion/epenthesis/metathesis]"],
   ["Inventory", "Common phonemes", "", "Include", "[d20] phonemes represented by 6% or more of the world's languages"],
   ["Vowel Inventory", "Total vowel features", "[do/don't]", "Include", "[d4] contrastive vowel features"],
-  ["Consonant Inventory", "Total major places", "", "Contrast", "[d8] major places of articulation"],
+  ["Consonant Inventory", "Total major places", "", "Contrast", "[d5] major places of articulation"],
   ["Phonotactics", "Initial constraint", "[do/don't]", "Allow", "[word/syllable] initial vowels"],
-  ["Vowel Inventory", "Vowel position limitation", "", "Include", "[d2]", "[d8]", VPOS],
+  ["Vowel Inventory", "Vowel height limitation", "", "Allow", "at most [d2]", "[d7]", VHEIGHT, "vowels"],
   ["Stress", "Foot type", "", "Include", "[trochaic/iambic] feet"],
-  ["Vowel Inventory", "Vowel Count Large", "", "Include", "5+[d35] vowels"],
+  ["Vowel Inventory", "Vowel Count Large", "", "Include", "5+[d35] vowels", "family=vowel-count"],
   ["Consonant Inventory", "Include place", "[do/don't]", "Include", "(If do: [d10])", "[d12]", PLACES],
   ["Consonant Realizations", "Consonant Mutation", "", "Include", "[d16] environments with consonant mutation"],
   ["Consonant Realizations", "Consonant rules", "[do/don't]", "Include", "rules for", "[d5]", "[deletion/epenthesis/assimilation/dissimilation/metathesis]"],
-  ["Vowel Inventory", "Vowel position symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d8]", VPOS],
+  ["Vowel Inventory", "Vowel height symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d7]", VHEIGHT, "vowels"],
   ["Vowel Inventory", "Open cells", "", "Include", "-1+[d9] open cells in the vowel inventory"],
   ["Consonant Realizations", "Consonant Allophones", "", "Include", "[d16] consonants with allophones"],
-  ["Vowel Realizations", "Tone Allophones", "", "Include", "[d5] environments with tone sandhi"],
+  ["Tone", "Tone Allophones", "", "Include", "[d5] environments with tone sandhi"],
   ["Consonant Inventory", "Voicing", "[do/don't]", "Include", "a voicing distinction (If do: for [d15*2] consonants)"],
   ["Vowel Realizations", "Vowel harmony", "", "Include", "vowel harmony through", "[d5]", "[backness/roundness/height/tongue root/nasalization]"],
   ["Inventory", "Marginal phonemes", "", "Include", "[d4] marginal phonemes"],
   ["Inventory", "Quantity distinction", "[do/don't]", "Include", "any sort of quantity distinction"],
   ["Consonant Inventory", "Open cells", "", "Include", "-1+[d17] open cells in the consonant inventory"],
   ["Consonant Realizations", "Consonant harmony", "", "Include", "consonant harmony"],
-  ["Consonant Inventory", "Include manner category", "[do/don't]", "Include", "(If do: [d20])", "[d4]", "[peripheral/coronal/apical/laminal]"],
-  ["Consonant Inventory", "Manner limitations", "", "Include", "[d3]", "[d8]", MANNER],
+  ["Consonant Inventory", "Include place category", "[do/don't]", "Include", "(If do: [d20])", "[d4]", "[peripheral/coronal/apical/laminal]"],
+  ["Consonant Inventory", "Manner limitations", "", "Allow", "at most [d3]", "[d8]", MANNER, "consonants"],
   ["Inventory", "Rare phonemes", "", "Include", "[d10] phonemes represented by 1% or less of the world's languages"],
   ["Consonant Inventory", "Manner neutralization", "", "Include", "the neutralization of", "[d8]", MANNER],
   ["Consonant Inventory", "Include special", "[do/don't]", "Include", "(If do: [d10])", "[d8]", SPECIAL],
   ["Consonant Inventory", "Place symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d12]", PLACES],
   ["Phonotactics", "Foot limitations", "", "Include", "[d4] foot structure limitations"],
   ["Consonant Inventory", "Include manner", "[do/don't]", "Include", "(If do: [d10])", "[d8]", MANNER],
-  ["Consonant Inventory", "Non-Vocalic Nucelus", "", "Include", "[d10] non-vocalic syllabic nuclei"],
+  ["Consonant Inventory", "Non-Vocalic Nucleus", "", "Include", "[d10] non-vocalic syllabic nuclei"],
   ["Vowel Inventory", "Include vowel feature", "[do/don't]", "Include", "(If do: [d3])", "[d4]", VFEAT],
-  ["Phonotactics", "Mora per syllable", "[do/don't]", "Allow", "[d4] moras per syllable"],
-  ["Consonant Inventory", "Place limitations", "", "Include", "[d3]", "[d12]", PLACES],
+  ["Phonotactics", "Mora per syllable", "", "Allow", "at most [d4] moras per syllable"],
+  ["Consonant Inventory", "Place limitations", "", "Allow", "at most [d3]", "[d12]", PLACES, "consonants"],
   ["Stress", "Degenerate feet", "[do/don't]", "Allow", "degenerate feet"],
-  ["Vowel Inventory", "Vowel Count Small", "", "Include", "[d5] vowels"],
-  ["Consonant Inventory", "Consonant Count Small", "", "Include", "5+[d15] consonants"],
+  ["Vowel Inventory", "Vowel Count Small", "", "Include", "[d5] vowels", "family=vowel-count"],
+  ["Consonant Inventory", "Consonant Count Small", "", "Include", "5+[d15] consonants", "family=consonant-count"],
   ["Vowel Inventory", "Vowel feature symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d4]", VFEAT],
-  ["Consonant Inventory", "Special limitations", "", "Include", "[d2]", "[d8]", SPECIAL],
-  ["Vowel Inventory", "Vowel Count Medium", "", "Include", "3+[d12] vowels"],
+  ["Consonant Inventory", "Special limitations", "", "Limit", "[d8]", SPECIAL, "to at most [d2] consonants"],
+  ["Vowel Inventory", "Vowel Count Medium", "", "Include", "3+[d12] vowels", "family=vowel-count"],
   ["Phonotactics", "Syllable limitations", "", "Include", "[d4] syllable structure limitations"],
   ["Vowel Inventory", "Diphthong Count", "", "Include", "[d10] diphthongs"],
-  ["Phonotactics", "Final constraint", "[do/don't]", "Allow", "[word/syllable] final", "[d6]", "[consonants/stops/voicing/fricatives/approximants]"],
+  ["Phonotactics", "Final constraint", "[do/don't]", "Allow", "[word/syllable] final", "[d6]", "[consonants/stops/voicing/fricatives/approximants/nasals]"],
   ["Stress", "Extrametricality", "", "Include", "[L/R] extrametricality"],
   ["Phonotactics", "Word limitations", "", "Include", "[d4] word structure limitations"],
   ["Consonant Inventory", "Manner symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d8]", MANNER],
@@ -544,8 +541,34 @@ const PHONEME_ROWS = [
   ["Vowel Inventory", "Front rounded vowel", "", "Include", "the front rounded vowel [ipa:front+rounded]"],
   ["Vowel Inventory", "Back unrounded vowel", "", "Include", "the back unrounded vowel [ipa:back+unrounded]"],
 ].map((r) => r.join("\t")).join("\n");
-// BASE_DEFAULT is the 57-card list from before phoneme cards; saved copies of it upgrade automatically.
-const DEFAULT_SOURCE = BASE_DEFAULT + "\n" + PHONEME_ROWS;
+// Cards added after the first 69 go at the end, so the ids of older cards (which hold their index) don't move.
+const ADDED_ROWS = [
+  ["Vowel Inventory", "Include vowel backness", "[do/don't]", "Include", "(If do: [d10])", "[d3]", VBACK, "vowels"],
+  ["Vowel Inventory", "Vowel backness limitation", "", "Allow", "at most [d2]", "[d3]", VBACK, "vowels"],
+  ["Vowel Inventory", "Vowel backness symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d3]", VBACK, "vowels"],
+].map((r) => r.join("\t")).join("\n");
+const DEFAULT_SOURCE = [CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
+// Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
+// Add the current list's fingerprint here (sourceFingerprint(DEFAULT_SOURCE)) before changing any card.
+const LEGACY_DEFAULTS = new Set([
+  "b6-t4902k",   // the first 3-card version
+  "4bz-1gdjhwy", // the 57 original cards
+  "51d-tjrh9m",  // 57 cards plus 12 phoneme cards
+]);
+function sourceFingerprint(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return s.length.toString(36) + "-" + h.toString(36);
+}
+const isLegacyDefault = (s) => typeof s === "string" && LEGACY_DEFAULTS.has(sourceFingerprint(s));
+// Built-in cards renamed in a list upgrade: old id -> new id, so piles, decks and the card in play follow them.
+const RENAMED_IDS = {
+  "c5-include-vowel-position": "c5-include-vowel-height",
+  "c15-vowel-position-limitation": "c15-vowel-height-limitation",
+  "c21-vowel-position-symmetry": "c21-vowel-height-symmetry",
+  "c31-include-manner-category": "c31-include-place-category",
+  "c39-non-vocalic-nucelus": "c39-non-vocalic-nucleus",
+};
 
 /* ---------- Phonemes ----------
    PHOIBLE 2.0 (Moran & McCloy 2019, https://phoible.org), CC BY 4.0. Each entry is a segment and the
@@ -1006,15 +1029,32 @@ function compile(tpl) {
   if (!slots.length) warnings.push("No dice in this rule, so there is nothing to roll.");
   return { parts, slots, warnings };
 }
+// The optional last column: key=value pairs separated by semicolons, like "family=consonant-count".
+const TAG_COLUMN = /^[a-z][\w-]*\s*=\s*[^;=]+(\s*;\s*[a-z][\w-]*\s*=\s*[^;=]+)*\s*;?$/i;
+const KNOWN_TAGS = ["family"];
+function parseTags(col) {
+  const out = {};
+  for (const pair of col.split(";")) {
+    const m = pair.match(/^\s*([\w-]+)\s*=\s*(.+?)\s*$/);
+    if (m) out[m[1].toLowerCase()] = m[2].toLowerCase();
+  }
+  return out;
+}
 function parseLibrary(src) {
   const cards = [], problems = [];
   src.split(/\r?\n/).forEach((raw, ln) => {
     const t = raw.trim();
     if (!t || t.startsWith("#")) return;
     const cols = splitRow(raw).map((s) => s.trim());
+    while (cols.length && !cols[cols.length - 1]) cols.pop();
+    const tags = cols.length > 3 && TAG_COLUMN.test(cols[cols.length - 1]) ? parseTags(cols.pop()) : {};
     if (cols.length < 3) { problems.push({ line: ln + 1, msg: "Needs at least three columns: category, name and rule." }); return; }
     const [category, name, ...rest] = cols;
     const card = compile(rest.filter(Boolean).join(" "));
+    card.tags = tags;
+    card.family = tags.family || null;
+    const unknownTags = Object.keys(tags).filter((k) => !KNOWN_TAGS.includes(k));
+    if (unknownTags.length) card.warnings.push(`Unknown tag${unknownTags.length === 1 ? "" : "s"}: ${unknownTags.join(", ")}. Known tags: ${KNOWN_TAGS.join(", ")}.`);
     card.category = category || "Uncategorized";
     card.name = name || "Untitled";
     const info = catInfo(card.category);
@@ -1274,9 +1314,10 @@ class Die {
 
 /* ---------- App state ---------- */
 const state = {
-  source: ((s) => (typeof s !== "string" || s === OLD_DEFAULT || s === BASE_DEFAULT ? DEFAULT_SOURCE : s))(ls.get("pc.source", DEFAULT_SOURCE)),
+  source: ((s) => (typeof s !== "string" || isLegacyDefault(s) ? DEFAULT_SOURCE : s))(ls.get("pc.source", DEFAULT_SOURCE)),
   library: [],
   pile: ls.get("pc.pile", null),
+  aside: ls.get("pc.aside", []), // card ids kept out of the pile because a card of their family is in the deck
   deck: ls.get("pc.deck", []),
   current: null, // { card, values: [], idx }
   dice: [],
@@ -1297,7 +1338,7 @@ function addNewCards() {
   let known = ls.get("pc.known", null);
   if (!Array.isArray(known)) {
     const inPlay = ls.get("pc.inplay", null);
-    known = state.pile.concat(state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.id] : []);
+    known = state.pile.concat(state.aside, state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.id] : []);
   }
   const seen = new Set(known);
   for (const c of state.library) {
@@ -1310,14 +1351,48 @@ function addNewCards() {
 function reshufflePile(announce = true) {
   const inPlay = state.current ? state.current.card.id : null;
   state.pile = shuffle(state.library.map((c) => c.id).filter((id) => id !== inPlay));
+  state.aside = [];
   ls.set("pc.pile", state.pile);
   ls.set("pc.known", state.library.map((c) => c.id));
+  syncFamilies();
   renderPile();
   if (announce) {
     toast(`Shuffled ${state.pile.length} card${state.pile.length === 1 ? "" : "s"} into the pile.`);
     if (!RM) $("pile").animate([{ transform: "rotate(0)" }, { transform: "rotate(-4deg)" }, { transform: "rotate(3deg)" }, { transform: "rotate(0)" }], { duration: 420 });
   }
 }
+
+/* ---------- Families ----------
+   Only one card per family (the family= tag) can be in the deck. While one is there, the rest of its
+   family wait in state.aside, and they go back into the pile when it leaves the deck. */
+// False while an account deck is still loading, so an empty deck doesn't return every set-aside card.
+let deckReady = !(window.claude && typeof window.claude.use === "function");
+function familyOf(cardId) {
+  const card = state.library.find((c) => c.id === cardId);
+  return card ? card.family : null;
+}
+function takenFamilies() {
+  const out = new Set();
+  for (const e of state.deck) { const f = e.family || familyOf(e.cardId); if (f) out.add(f); }
+  return out;
+}
+function syncFamilies() {
+  if (!deckReady || !Array.isArray(state.pile)) return { moved: [], back: [] };
+  const taken = takenFamilies(), ids = new Set(state.library.map((c) => c.id));
+  const blocked = (id) => { const f = familyOf(id); return !!f && taken.has(f); };
+  const moved = state.pile.filter(blocked);
+  const back = state.aside.filter((id) => ids.has(id) && !blocked(id) && !state.pile.includes(id) && !(state.current && state.current.card.id === id));
+  if (!moved.length && !back.length && state.aside.every((id) => ids.has(id) && blocked(id))) return { moved, back };
+  state.pile = state.pile.filter((id) => !blocked(id));
+  state.aside = state.aside.filter((id) => ids.has(id) && blocked(id) && !moved.includes(id)).concat(moved);
+  for (const id of back) state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, id);
+  ls.set("pc.pile", state.pile);
+  ls.set("pc.aside", state.aside);
+  renderPile();
+  return { moved, back };
+}
+const cardName = (id) => { const c = state.library.find((x) => x.id === id); return c ? c.name : id; };
+const listNames = (ids) => ids.map(cardName).join(", ");
 
 /* ---------- Pile ---------- */
 function backHTML() {
@@ -1331,7 +1406,9 @@ function renderPile() {
   const inPlay = !!state.current;
   pile.disabled = inPlay || n === 0;
   pile.setAttribute("aria-label", inPlay ? "Finish the card in play before drawing" : n ? `Draw a card, ${n} left` : "Pile empty");
-  $("pileCount").innerHTML = inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`;
+  const aside = state.aside.length;
+  const asideNote = aside ? ` · <span title="${esc("Set aside while a card of their family is in your deck: " + listNames(state.aside))}">${aside} set aside</span>` : "";
+  $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`) + asideNote;
 }
 
 /* ---------- Card in play ---------- */
@@ -1574,6 +1651,7 @@ function keep() {
   const entry = {
     id: "k" + Date.now().toString(36) + rollValue(1e6).toString(36),
     cardId: c.card.id, category: c.card.category, name: c.card.name, rank: c.card.rank,
+    ...(c.card.family ? { family: c.card.family } : {}),
     text: ruleText(c.card, c.values),
     html: ruleHTMLDone(c.card, c.values),
     rolls: rollSummary(c.card, c.values),
@@ -1586,8 +1664,10 @@ function keep() {
   const finish = () => {
     state.busy = false; state.current = null; saveInPlay();
     renderCurrent(); renderPile(); setTrayIdle();
+    const before = state.aside.length;
     addEntry(entry);
-    toast(`Kept “${entry.name}”.`);
+    const set = state.aside.length - before;
+    toast(set > 0 ? `Kept “${entry.name}”. ${set} other ${set === 1 ? "card" : "cards"} from its family ${set === 1 ? "is" : "are"} set aside.` : `Kept “${entry.name}”.`);
   };
   if (RM || !el) return finish();
   const grid = $("deckGrid"), a = el.getBoundingClientRect(), b = grid.getBoundingClientRect();
@@ -1604,6 +1684,17 @@ function discard() {
   const finish = () => { state.busy = false; state.current = null; saveInPlay(); renderCurrent(); renderPile(); setTrayIdle(); toast("Discarded. It went to the bottom of the pile."); };
   if (RM || !el) return finish();
   el.animate([{ transform: "none", opacity: 1 }, { transform: "translate(-40px, 60px) rotate(-14deg)", opacity: 0 }], { duration: 380, easing: "ease-in", fill: "forwards" }).onfinish = finish;
+}
+// A card in play saved under an older wording keeps its rolls only if they still match its dice.
+function valuesFit(card, values) {
+  if (values.length > card.slots.length) return false;
+  return values.every((v, i) => {
+    if (!v || v.skipped) return true;
+    const sl = card.slots[i];
+    if (sl.kind === "pool") return typeof v.sym === "string" || v.sym === null;
+    if (!(v.n >= 1 && v.n <= sl.sides)) return false;
+    return !sl.options || sl.options[v.n - 1] === v.label;
+  });
 }
 function saveInPlay() {
   const c = state.current;
@@ -1637,6 +1728,7 @@ function renderDeck() {
   }
   freshId = null;
   $("plainText").value = deckText(deck);
+  syncFamilies();
 }
 function sanitizeEntryHTML(e) {
   // Stored html only ever contains escaped text and <em>; rebuild from that shape to be safe.
@@ -1661,25 +1753,34 @@ function addEntry(entry) {
     state.deck.push(entry); ls.set("pc.deck", state.deck); renderDeck();
   }
 }
+function announceReturned(before) {
+  const back = before.filter((id) => !state.aside.includes(id) && state.pile.includes(id));
+  if (back.length) toast(`${listNames(back)} went back into the pile.`);
+}
 async function removeEntry(id) {
+  const before = state.aside.slice();
   state.deck = state.deck.filter((e) => e.id !== id);
   renderDeck();
+  announceReturned(before);
   if (store.mode === "account") { try { await store.db.doc(store.base + "/deck/" + id).delete(); } catch { toast("Couldn’t remove it from your account. Try again."); } }
   else ls.set("pc.deck", state.deck);
 }
 async function clearDeck() {
   const ids = state.deck.map((e) => e.id);
+  const before = state.aside.length;
   state.deck = []; renderDeck();
+  const back = before - state.aside.length;
   if (store.mode === "account") {
     for (const id of ids) { try { await store.db.doc(store.base + "/deck/" + id).delete(); } catch {} }
   } else ls.set("pc.deck", []);
-  toast("Deck cleared.");
+  toast(back > 0 ? `Deck cleared. ${back} set-aside ${back === 1 ? "card" : "cards"} went back into the pile.` : "Deck cleared.");
 }
 
 /* ---------- Saving ---------- */
 function setStatus(mode) {
   const el = $("status");
   el.dataset.mode = mode;
+  if (mode !== "loading" && !deckReady) { deckReady = true; if (mode === "local") syncFamilies(); }
   el.textContent = mode === "account" ? "Saved to your account" : mode === "loading" ? "Opening your deck…" : "Saved in this browser";
 }
 async function connectStore() {
@@ -1694,7 +1795,7 @@ async function connectStore() {
     store.db = db; store.base = "data/users/" + uid;
     try {
       const lib = await db.doc(store.base + "/prefs/library").get();
-      if (lib.exists && typeof lib.data().source === "string" && lib.data().source !== OLD_DEFAULT && lib.data().source !== BASE_DEFAULT && lib.data().source !== state.source) {
+      if (lib.exists && typeof lib.data().source === "string" && !isLegacyDefault(lib.data().source) && lib.data().source !== state.source) {
         applySource(lib.data().source, { reshuffle: false });
         ls.set("pc.source", lib.data().source);
         if (!state.current) setTrayIdle();
@@ -1813,12 +1914,24 @@ addEventListener("resize", () => {
 });
 
 /* ---------- Boot ---------- */
+// The built-in list renamed a few cards; move saved ids to the new names.
+if (state.source === DEFAULT_SOURCE) {
+  const ren = (id) => RENAMED_IDS[id] || id;
+  if (Array.isArray(state.pile) && state.pile.some((id) => RENAMED_IDS[id])) { state.pile = state.pile.map(ren); ls.set("pc.pile", state.pile); }
+  const known = ls.get("pc.known", null);
+  if (Array.isArray(known) && known.some((id) => RENAMED_IDS[id])) ls.set("pc.known", known.map(ren));
+  const ip = ls.get("pc.inplay", null);
+  if (ip && RENAMED_IDS[ip.id]) ls.set("pc.inplay", { ...ip, id: ren(ip.id) });
+  if (state.deck.some((e) => RENAMED_IDS[e.cardId])) { state.deck = state.deck.map((e) => RENAMED_IDS[e.cardId] ? { ...e, cardId: ren(e.cardId) } : e); ls.set("pc.deck", state.deck); }
+}
+if (!Array.isArray(state.aside)) state.aside = [];
 applySource(state.source, { reshuffle: false });
 const saved = ls.get("pc.inplay", null);
 if (saved) {
   const card = state.library.find((c) => c.id === saved.id);
   if (card) {
-    state.current = { card, values: Array.isArray(saved.values) ? saved.values : [], idx: -1, hands: saved.hands && typeof saved.hands === "object" ? saved.hands : {} };
+    const fits = Array.isArray(saved.values) && valuesFit(card, saved.values);
+    state.current = { card, values: fits ? saved.values : [], idx: -1, hands: fits && saved.hands && typeof saved.hands === "object" ? saved.hands : {} };
     state.pile = state.pile.filter((id) => id !== card.id);
   }
 }

@@ -42,6 +42,13 @@ for (const c of cards) {
   );
 }
 console.log(warned + " card(s) with warnings");
+const fams = {};
+for (const c of cards) if (c.family) (fams[c.family] = fams[c.family] || []).push(c.name);
+console.log("Families: " + (Object.entries(fams).map(([f, n]) => f + " (" + n.join(", ") + ")").join("; ") || "none"));
+const ids = new Set(cards.map((c) => c.id));
+const lost = Object.values(RENAMED_IDS).filter((id) => !ids.has(id));
+if (lost.length) console.log("!! RENAMED_IDS points at ids that no longer exist: " + lost.join(", "));
+if (isLegacyDefault(DEFAULT_SOURCE)) console.log("!! DEFAULT_SOURCE is listed in LEGACY_DEFAULTS, so it would never load.");
 const table = phonemes(), bands = {};
 for (const p of table) bands[p.band] = (bands[p.band] || 0) + 1;
 console.log(\`Phoneme table: \${table.length} of \${PHOIBLE_DATA.split(" ").filter(Boolean).length} PHOIBLE segments readable (\${Object.entries(bands).map(([b, n]) => n + " " + b).join(", ")}).\`);
