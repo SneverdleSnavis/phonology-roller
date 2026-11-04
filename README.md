@@ -11,6 +11,7 @@ A card-and-dice tool for building constrained phonologies. You draw a constraint
 2. **Roll.** A matching die drops onto the felt tray. Tap it, or drag and flick it. For a pick-from-a-list blank, the numbered options appear under the tray and the rolled one flies onto the card.
 3. **Choices and conditions.** `[do/don't]` is a coin flip. `(If do: …)` is struck through and skipped when the coin says "don't".
 4. **Keep or discard.** Keep files the card into your deck. Discard sends it to the bottom of the pile.
+5. **The language profile.** Beside the deck, a panel shows what the kept cards commit the language to: inventory sizes, places, manners, vowels, prosody, mandated phonemes and the phoneme budget. Before each roll, options that would clash with it are struck through and the die shrinks to what's left. A blank with one value left is filled without a roll, with the reason under the card. Cards with no roll that fits, a taken family, or a missing prerequisite are set aside, with reasons listed in the panel, and go back into the pile when that changes.
 
 Keyboard: `D` draw, `R` roll, `K` keep.
 
@@ -20,7 +21,7 @@ Keyboard: `D` draw, `R` roll, `K` keep.
 | --- | --- |
 | `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 72 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
 | `docs/PLAN.md` | The card expansion plan: language profile, clash checks, phoneme cards, new card types, fixes, build phases. |
-| `scripts/check-cards.js` | Runs the card parser in Node over every built-in card with random rolls and prints the sentences and warnings. |
+| `scripts/check-cards.js` | Runs the card parser in Node over every built-in card with random rolls and prints the sentences and warnings, then plays random games through the clash checks and reports any clash that reaches a deck. |
 | `scripts/build-phonemes.js` | Rebuilds the phoneme table in the page from the PHOIBLE 2.0 CSV. |
 | `CLAUDE.md` | Working notes for Claude Code sessions on this repo. |
 
@@ -40,7 +41,7 @@ Cards are rows pasted from a spreadsheet, separated by tabs (or `|`): category, 
 | `(If do: …)` | Only applies when an earlier roll came up "do". |
 | `[10]` | A fixed number, nothing to roll (the editor warns about it). |
 | `family=consonant-count` | An optional last column of tags (`key=value`, separated by `;`). Only one card per family can be in the deck: keeping one sets the rest aside until it leaves. |
-| `needs=tone`, `effect=neutralize`, `counts=consonants` | Tags for the clash checks planned in Phase 3. The parser reads them and the editor shows them; they don't change play yet. `effect` is one of `include`, `exclude`, `neutralize`, `at-most`, `symmetric`, `count`. Unknown tags and effects are flagged in the editor. |
+| `effect=include`, `counts=consonants`, `feature=pitch accent`, `needs=tone` | How a card writes to the language profile. `effect` (`include`, `exclude`, `neutralize`, `at-most`, `symmetric`, `count`) applies to the card's named list, or to its `feature`. `counts` names the total a number sets. `needs` keeps a card set aside until the deck has that thing. The editor flags unknown tags and values. |
 | `[ipa:rare]`, `[ipa:front+rounded]` | Deal up to 20 phonemes that have every listed feature, then roll for one. Terms: `common`, `uncommon`, `rare`, `consonant`, `vowel`, any place, manner or vowel height, `front`/`central`/`back`, `rounded`/`unrounded`, `ejective`, `implosive`, `click`, `coarticulated`, `prenasalized`, `aspirated`, `nasalized`, `long` and more. Phonemes already in your deck aren't dealt again. |
 
 Edit the card list in the app with **Edit cards**. It shows a live preview of every list and card, with each card's tags, and flags problems. Run the parser check from the repo root:

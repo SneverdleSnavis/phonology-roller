@@ -355,6 +355,55 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+
+/* Clash checks: crossed-out options, values set without a roll, the reasons list */
+.linkish { border: 0; background: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.card-notes {
+  list-style: none; margin: 0; padding: 10px 12px; border-radius: 8px; display: grid; gap: 4px; font-size: 14px; line-height: 1.4;
+  background: color-mix(in srgb, var(--suit) 8%, var(--paper)); border: 1px solid color-mix(in srgb, var(--suit) 30%, transparent);
+}
+.card-notes b { color: var(--suit); font-style: italic; }
+.card-notes[hidden], .card-actions[hidden] { display: none; }
+.slot.done.forced .val { text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+.opt.off { opacity: .6; background: transparent; border-style: dashed; cursor: help; }
+.opt.off s { text-decoration-thickness: 1.5px; }
+.opt.num { font-family: var(--f-mono); font-size: 12px; padding: 2px 6px; min-width: 28px; justify-content: center; }
+.why { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
+.why:empty { display: none; }
+.why-head { margin: 0 0 4px; font-family: var(--f-mono); font-size: 11px; letter-spacing: .04em; }
+.why ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.why s { color: var(--ink); margin-right: 4px; }
+
+/* Language profile, beside the deck */
+.deck-body { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 22px; align-items: start; }
+.deck-main { display: grid; gap: 16px; min-width: 0; }
+.profile { background: var(--paper); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 16px 18px; display: grid; gap: 12px; min-width: 0; }
+.profile h3 { font-family: var(--f-display); font-weight: 800; font-size: 19px; margin: 0; letter-spacing: -.01em; }
+.profile-intro { margin: -6px 0 0; font-size: 14px; color: var(--muted); font-style: italic; }
+#profileBody { display: grid; gap: 14px; }
+.pa { border-radius: 6px; }
+.pa h4 { font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 6px; font-weight: 500; }
+.pchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+.pchip { font-size: 14px; line-height: 1.3; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); cursor: default; }
+.pchip.in { border-color: color-mix(in srgb, var(--suit-4) 60%, var(--line)); background: color-mix(in srgb, var(--suit-4) 11%, transparent); }
+.pchip.no { color: var(--muted); border-style: dashed; }
+.pchip.cap { border-color: color-mix(in srgb, var(--suit-5) 60%, var(--line)); }
+.pchip.ipa { font-size: 16px; }
+.prow { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 14px; border-bottom: 1px dotted var(--line); padding: 2px 0; }
+.prow b { font-family: var(--f-mono); font-weight: 500; font-size: 13px; text-align: right; white-space: nowrap; }
+.prow i { color: var(--muted); font-size: 12.5px; }
+.pclash { border: 1px solid var(--danger); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.pclash b { color: var(--danger); font-family: var(--f-display); font-weight: 600; }
+.pclash ul { margin: 6px 0; padding-left: 18px; }
+.pclash p { margin: 0; color: var(--muted); font-size: 13px; }
+.aside-list ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 7px; font-size: 13.5px; line-height: 1.35; }
+.aside-list li b { font-family: var(--f-display); font-weight: 600; display: block; font-size: 14px; }
+.aside-list li span { color: var(--muted); }
+.pa.flash { animation: flash 1.4s ease-out; }
+@keyframes flash { 0% { background: color-mix(in srgb, var(--accent) 20%, transparent); } 100% { background: transparent; } }
+.pnote, .pempty, .plegend { font-size: 13px; color: var(--muted); margin: 0; }
+@media (max-width: 900px) { .deck-body { grid-template-columns: minmax(0, 1fr); } }
+
 @media (max-width: 900px) {
   .board { grid-template-columns: 120px minmax(0, 1fr); }
   .tray-zone { grid-column: 1 / -1; }
@@ -404,6 +453,7 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
     <section class="play-zone" aria-label="Current card">
       <p class="zone-label">In play</p>
       <div class="card-slot" id="cardSlot"></div>
+      <ul class="card-notes" id="cardNotes" hidden></ul>
       <div class="card-actions" id="cardActions" hidden>
         <span class="progress" id="progress"></span>
         <button class="btn ghost" id="discardBtn" type="button">Discard</button>
@@ -416,6 +466,7 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <div class="tray" id="tray"><div class="tray-mark" id="trayMark">roll</div><div class="tray-hint" id="trayHint">tap or flick a die</div></div>
       <div class="prompt" id="prompt" aria-live="polite"></div>
       <div class="strip" id="strip"></div>
+      <div class="why" id="why"></div>
       <div class="keys"><kbd>D</kbd> draw &nbsp; <kbd>R</kbd> roll &nbsp; <kbd>K</kbd> keep</div>
     </section>
   </main>
@@ -429,11 +480,20 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
         <button class="btn ghost danger" id="clearBtn" type="button">Clear deck</button>
       </div>
     </div>
-    <div id="deckGrid"></div>
-    <details class="plain" id="plain">
-      <summary>Plain text of this deck</summary>
-      <textarea id="plainText" readonly aria-label="Deck as plain text"></textarea>
-    </details>
+    <div class="deck-body">
+      <div class="deck-main">
+        <div id="deckGrid"></div>
+        <details class="plain" id="plain">
+          <summary>Plain text of this deck</summary>
+          <textarea id="plainText" readonly aria-label="Deck as plain text"></textarea>
+        </details>
+      </div>
+      <aside class="profile" id="profile" aria-labelledby="profTitle">
+        <h3 id="profTitle">Language profile</h3>
+        <p class="profile-intro">What your deck commits the language to. Options that clash with it are crossed out before you roll.</p>
+        <div id="profileBody"></div>
+      </aside>
+    </div>
     <p class="credit">Phoneme cards use data from <a href="https://phoible.org" target="_blank" rel="noopener">PHOIBLE 2.0</a> (Moran and McCloy 2019), licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Trimmed to single sounds found in 3 or more languages, with frequencies counted per language.</p>
   </section>
 </div>
@@ -452,7 +512,9 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <dt>@place a/b/c</dt><dd>A named list on its own row, anywhere in the text. Cards use it as [@place], like [d12] [@place].</dd>
       <dt>ejectives {airstream}</dt><dd>Marks what kind of feature an option is, for lists that mix kinds. The card shows only “ejectives”.</dd>
       <dt>[ipa:rare]</dt><dd>Deal up to 20 phonemes from a pool and roll for one. Pools: common, uncommon, rare, consonant, vowel, any place, manner or vowel height, front, back, rounded, unrounded, ejective, implosive, click, coarticulated, prenasalized, aspirated, nasalized, long and more. Join them with +, like [ipa:rare+vowel].</dd>
-      <dt>family=…; needs=…</dt><dd>An optional last column of tags, separated by semicolons. family allows one card of the family in the deck. needs, effect and counts are for clash checks still to come.</dd>
+      <dt>family=…; needs=…</dt><dd>An optional last column of tags, separated by semicolons. family allows one card of the family in the deck. needs=tone keeps a card out of the pile until the deck has tone.</dd>
+      <dt>effect=include</dt><dd>How a card writes to the language profile: include (or rule out on “don't”), exclude, neutralize, at-most, symmetric or count. It applies to the card's named list, or to feature=… for cards without one.</dd>
+      <dt>counts=consonants</dt><dd>The total a number roll sets, like consonants, vowels, moras or rare-phonemes. With effect=at-most it sets a ceiling instead.</dd>
     </dl>
     <div class="ed-cols">
       <textarea id="src" spellcheck="false" aria-label="Card rows"></textarea>
@@ -486,63 +548,63 @@ const LIST_ROWS = [
 const PLACES = "[@place]", MANNER = "[@manner]", VHEIGHT = "[@vheight]", VBACK = "[@vback]", SPECIAL = "[@special]", VFEAT = "[@vfeature]";
 // The built-in cards. A last column of key=value pairs holds tags; family=… allows one card per family in the deck.
 const CARD_ROWS = [
-  ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants", "family=consonant-count"],
-  ["Vowel Realizations", "Vowel Allophones", "", "Include", "[d8] vowels with allophones"],
-  ["Inventory", "Phoneme neutralization", "", "Include", "[d10] phonemes neutralized in certain environments"],
-  ["Consonant Inventory", "Place neutralization", "", "Include", "the neutralization of", "[d12]", PLACES],
-  ["Consonant Inventory", "Total minor places", "", "Contrast", "[d8] minor places of articulation"],
-  ["Vowel Inventory", "Include vowel height", "[do/don't]", "Include", "(If do: [d10])", "[d7]", VHEIGHT, "vowels"],
-  ["Stress", "Primary stress", "", "Include", "[L/R]-most foot as primary stress"],
-  ["Stress", "Foot directionality", "", "Include", "start feet from [L/R] edge"],
-  ["Stress", "Pitch accent", "[do/don't]", "Include", "pitch accent"],
-  ["Consonant Inventory", "Consonant Count Medium", "", "Include", "10+[d30] consonants", "family=consonant-count"],
-  ["Vowel Realizations", "Vowel rules", "[do/don't]", "Include", "rules for", "[d3]", "[deletion/epenthesis/metathesis]"],
-  ["Inventory", "Common phonemes", "", "Include", "[d20] phonemes represented by 6% or more of the world's languages"],
-  ["Vowel Inventory", "Total vowel features", "[do/don't]", "Include", "[d4] contrastive vowel features"],
-  ["Consonant Inventory", "Total major places", "", "Contrast", "[d5] major places of articulation"],
-  ["Phonotactics", "Initial constraint", "[do/don't]", "Allow", "[word/syllable] initial vowels"],
-  ["Vowel Inventory", "Vowel height limitation", "", "Allow", "at most [d2]", "[d7]", VHEIGHT, "vowels"],
-  ["Stress", "Foot type", "", "Include", "[trochaic/iambic] feet"],
-  ["Vowel Inventory", "Vowel Count Large", "", "Include", "5+[d35] vowels", "family=vowel-count"],
-  ["Consonant Inventory", "Include place", "[do/don't]", "Include", "(If do: [d10])", "[d12]", PLACES],
-  ["Consonant Realizations", "Consonant Mutation", "", "Include", "[d16] environments with consonant mutation"],
-  ["Consonant Realizations", "Consonant rules", "[do/don't]", "Include", "rules for", "[d5]", "[deletion/epenthesis/assimilation/dissimilation/metathesis]"],
-  ["Vowel Inventory", "Vowel height symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d7]", VHEIGHT, "vowels"],
-  ["Vowel Inventory", "Open cells", "", "Include", "-1+[d9] open cells in the vowel inventory"],
-  ["Consonant Realizations", "Consonant Allophones", "", "Include", "[d16] consonants with allophones"],
-  ["Tone", "Tone Allophones", "", "Include", "[d5] environments with tone sandhi"],
-  ["Consonant Inventory", "Voicing", "[do/don't]", "Include", "a voicing distinction (If do: for [d15*2] consonants)"],
-  ["Vowel Realizations", "Vowel harmony", "", "Include", "vowel harmony through", "[d5]", "[backness/roundness/height/tongue root/nasalization]"],
-  ["Inventory", "Marginal phonemes", "", "Include", "[d4] marginal phonemes"],
-  ["Inventory", "Quantity distinction", "[do/don't]", "Include", "any sort of quantity distinction"],
-  ["Consonant Inventory", "Open cells", "", "Include", "-1+[d17] open cells in the consonant inventory"],
-  ["Consonant Realizations", "Consonant harmony", "", "Include", "consonant harmony"],
-  ["Consonant Inventory", "Include place category", "[do/don't]", "Include", "(If do: [d20])", "[d4]", "[peripheral/coronal/apical/laminal]"],
-  ["Consonant Inventory", "Manner limitations", "", "Allow", "at most [d3]", "[d8]", MANNER, "consonants"],
-  ["Inventory", "Rare phonemes", "", "Include", "[d10] phonemes represented by 1% or less of the world's languages"],
-  ["Consonant Inventory", "Manner neutralization", "", "Include", "the neutralization of", "[d8]", MANNER],
-  ["Consonant Inventory", "Include special", "[do/don't]", "Include", "(If do: [d10])", "[d8]", SPECIAL],
-  ["Consonant Inventory", "Place symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d12]", PLACES],
-  ["Phonotactics", "Foot limitations", "", "Include", "[d4] foot structure limitations"],
-  ["Consonant Inventory", "Include manner", "[do/don't]", "Include", "(If do: [d10])", "[d8]", MANNER],
-  ["Consonant Inventory", "Non-Vocalic Nucleus", "", "Include", "[d10] non-vocalic syllabic nuclei"],
-  ["Vowel Inventory", "Include vowel feature", "[do/don't]", "Include", "(If do: [d3])", "[d4]", VFEAT],
-  ["Phonotactics", "Mora per syllable", "", "Allow", "at most [d4] moras per syllable"],
-  ["Consonant Inventory", "Place limitations", "", "Allow", "at most [d3]", "[d12]", PLACES, "consonants"],
-  ["Stress", "Degenerate feet", "[do/don't]", "Allow", "degenerate feet"],
-  ["Vowel Inventory", "Vowel Count Small", "", "Include", "[d5] vowels", "family=vowel-count"],
-  ["Consonant Inventory", "Consonant Count Small", "", "Include", "5+[d15] consonants", "family=consonant-count"],
-  ["Vowel Inventory", "Vowel feature symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d4]", VFEAT],
-  ["Consonant Inventory", "Special limitations", "", "Limit", "[d8]", SPECIAL, "to at most [d2] consonants"],
-  ["Vowel Inventory", "Vowel Count Medium", "", "Include", "3+[d12] vowels", "family=vowel-count"],
-  ["Phonotactics", "Syllable limitations", "", "Include", "[d4] syllable structure limitations"],
-  ["Vowel Inventory", "Diphthong Count", "", "Include", "[d10] diphthongs"],
-  ["Phonotactics", "Final constraint", "[do/don't]", "Allow", "[word/syllable] final", "[d6]", "[consonants/stops/voicing/fricatives/approximants/nasals]"],
-  ["Stress", "Extrametricality", "", "Include", "[L/R] extrametricality"],
-  ["Phonotactics", "Word limitations", "", "Include", "[d4] word structure limitations"],
-  ["Consonant Inventory", "Manner symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d8]", MANNER],
-  ["Inventory", "Uncommon phonemes", "", "Include", "[d15] phonemes represented by 5% or less of the world's languages"],
-  ["Stress", "Quantity sensitivity", "[do/don't]", "Include", "quantity sensitivity"],
+  ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants", "family=consonant-count; counts=consonants"],
+  ["Vowel Realizations", "Vowel Allophones", "", "Include", "[d8] vowels with allophones", "counts=allophonic-vowels"],
+  ["Inventory", "Phoneme neutralization", "", "Include", "[d10] phonemes neutralized in certain environments", "counts=neutralized-phonemes"],
+  ["Consonant Inventory", "Place neutralization", "", "Include", "the neutralization of", "[d12]", PLACES, "effect=neutralize"],
+  ["Consonant Inventory", "Total minor places", "", "Contrast", "[d8] minor places of articulation", "counts=minor-places"],
+  ["Vowel Inventory", "Include vowel height", "[do/don't]", "Include", "(If do: [d10])", "[d7]", VHEIGHT, "vowels", "effect=include"],
+  ["Stress", "Primary stress", "", "Include", "[L/R]-most foot as primary stress", "feature=primary stress; effect=include"],
+  ["Stress", "Foot directionality", "", "Include", "start feet from [L/R] edge", "feature=foot direction; effect=include"],
+  ["Stress", "Pitch accent", "[do/don't]", "Include", "pitch accent", "feature=pitch accent; effect=include"],
+  ["Consonant Inventory", "Consonant Count Medium", "", "Include", "10+[d30] consonants", "family=consonant-count; counts=consonants"],
+  ["Vowel Realizations", "Vowel rules", "[do/don't]", "Include", "rules for", "[d3]", "[deletion/epenthesis/metathesis]", "feature=vowel rules; effect=include"],
+  ["Inventory", "Common phonemes", "", "Include", "[d20] phonemes represented by 6% or more of the world's languages", "counts=common-phonemes"],
+  ["Vowel Inventory", "Total vowel features", "[do/don't]", "Include", "[d4] contrastive vowel features", "counts=vowel-features"],
+  ["Consonant Inventory", "Total major places", "", "Contrast", "[d5] major places of articulation", "counts=major-places"],
+  ["Phonotactics", "Initial constraint", "[do/don't]", "Allow", "[word/syllable] initial vowels", "feature=initial vowels; effect=include"],
+  ["Vowel Inventory", "Vowel height limitation", "", "Allow", "at most [d2]", "[d7]", VHEIGHT, "vowels", "effect=at-most"],
+  ["Stress", "Foot type", "", "Include", "[trochaic/iambic] feet", "feature=foot type; effect=include"],
+  ["Vowel Inventory", "Vowel Count Large", "", "Include", "5+[d35] vowels", "family=vowel-count; counts=vowels"],
+  ["Consonant Inventory", "Include place", "[do/don't]", "Include", "(If do: [d10])", "[d12]", PLACES, "effect=include"],
+  ["Consonant Realizations", "Consonant Mutation", "", "Include", "[d16] environments with consonant mutation", "counts=mutation-environments"],
+  ["Consonant Realizations", "Consonant rules", "[do/don't]", "Include", "rules for", "[d5]", "[deletion/epenthesis/assimilation/dissimilation/metathesis]", "feature=consonant rules; effect=include"],
+  ["Vowel Inventory", "Vowel height symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d7]", VHEIGHT, "vowels", "effect=symmetric"],
+  ["Vowel Inventory", "Open cells", "", "Include", "-1+[d9] open cells in the vowel inventory", "counts=vowel-open-cells"],
+  ["Consonant Realizations", "Consonant Allophones", "", "Include", "[d16] consonants with allophones", "counts=allophonic-consonants"],
+  ["Tone", "Tone Allophones", "", "Include", "[d5] environments with tone sandhi", "needs=tone; counts=sandhi-environments"],
+  ["Consonant Inventory", "Voicing", "[do/don't]", "Include", "a voicing distinction (If do: for [d15*2] consonants)", "feature=voicing; effect=include"],
+  ["Vowel Realizations", "Vowel harmony", "", "Include", "vowel harmony through", "[d5]", "[backness/roundness/height/tongue root/nasalization]", "feature=vowel harmony; effect=include"],
+  ["Inventory", "Marginal phonemes", "", "Include", "[d4] marginal phonemes", "counts=marginal-phonemes"],
+  ["Inventory", "Quantity distinction", "[do/don't]", "Include", "any sort of quantity distinction", "feature=quantity; effect=include"],
+  ["Consonant Inventory", "Open cells", "", "Include", "-1+[d17] open cells in the consonant inventory", "counts=consonant-open-cells"],
+  ["Consonant Realizations", "Consonant harmony", "", "Include", "consonant harmony", "feature=consonant harmony; effect=include"],
+  ["Consonant Inventory", "Include place category", "[do/don't]", "Include", "(If do: [d20])", "[d4]", "[peripheral/coronal/apical/laminal]", "feature=place category; effect=include"],
+  ["Consonant Inventory", "Manner limitations", "", "Allow", "at most [d3]", "[d8]", MANNER, "consonants", "effect=at-most"],
+  ["Inventory", "Rare phonemes", "", "Include", "[d10] phonemes represented by 1% or less of the world's languages", "counts=rare-phonemes"],
+  ["Consonant Inventory", "Manner neutralization", "", "Include", "the neutralization of", "[d8]", MANNER, "effect=neutralize"],
+  ["Consonant Inventory", "Include special", "[do/don't]", "Include", "(If do: [d10])", "[d8]", SPECIAL, "effect=include"],
+  ["Consonant Inventory", "Place symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d12]", PLACES, "effect=symmetric"],
+  ["Phonotactics", "Foot limitations", "", "Include", "[d4] foot structure limitations", "counts=foot-limits"],
+  ["Consonant Inventory", "Include manner", "[do/don't]", "Include", "(If do: [d10])", "[d8]", MANNER, "effect=include"],
+  ["Consonant Inventory", "Non-Vocalic Nucleus", "", "Include", "[d10] non-vocalic syllabic nuclei", "counts=syllabic-consonants"],
+  ["Vowel Inventory", "Include vowel feature", "[do/don't]", "Include", "(If do: [d3])", "[d4]", VFEAT, "effect=include"],
+  ["Phonotactics", "Mora per syllable", "", "Allow", "at most [d4] moras per syllable", "counts=moras; effect=at-most"],
+  ["Consonant Inventory", "Place limitations", "", "Allow", "at most [d3]", "[d12]", PLACES, "consonants", "effect=at-most"],
+  ["Stress", "Degenerate feet", "[do/don't]", "Allow", "degenerate feet", "feature=degenerate feet; effect=include"],
+  ["Vowel Inventory", "Vowel Count Small", "", "Include", "[d5] vowels", "family=vowel-count; counts=vowels"],
+  ["Consonant Inventory", "Consonant Count Small", "", "Include", "5+[d15] consonants", "family=consonant-count; counts=consonants"],
+  ["Vowel Inventory", "Vowel feature symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d4]", VFEAT, "effect=symmetric"],
+  ["Consonant Inventory", "Special limitations", "", "Limit", "[d8]", SPECIAL, "to at most [d2] consonants", "effect=at-most"],
+  ["Vowel Inventory", "Vowel Count Medium", "", "Include", "3+[d12] vowels", "family=vowel-count; counts=vowels"],
+  ["Phonotactics", "Syllable limitations", "", "Include", "[d4] syllable structure limitations", "counts=syllable-limits"],
+  ["Vowel Inventory", "Diphthong Count", "", "Include", "[d10] diphthongs", "counts=diphthongs"],
+  ["Phonotactics", "Final constraint", "[do/don't]", "Allow", "[word/syllable] final", "[d6]", "[consonants/stops/voicing/fricatives/approximants/nasals]", "feature=final; effect=include"],
+  ["Stress", "Extrametricality", "", "Include", "[L/R] extrametricality", "feature=extrametricality; effect=include"],
+  ["Phonotactics", "Word limitations", "", "Include", "[d4] word structure limitations", "counts=word-limits"],
+  ["Consonant Inventory", "Manner symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d8]", MANNER, "effect=symmetric"],
+  ["Inventory", "Uncommon phonemes", "", "Include", "[d15] phonemes represented by 5% or less of the world's languages", "counts=uncommon-phonemes"],
+  ["Stress", "Quantity sensitivity", "[do/don't]", "Include", "quantity sensitivity", "feature=quantity sensitivity; effect=include"],
 ].map((r) => r.join("\t")).join("\n");
 // Phoneme mandate cards. [ipa:…] deals a hand of phonemes from the PHOIBLE table below.
 const PHONEME_ROWS = [
@@ -561,9 +623,9 @@ const PHONEME_ROWS = [
 ].map((r) => r.join("\t")).join("\n");
 // Cards added after the first 69 go at the end, so the ids of older cards (which hold their index) don't move.
 const ADDED_ROWS = [
-  ["Vowel Inventory", "Include vowel backness", "[do/don't]", "Include", "(If do: [d10])", "[d3]", VBACK, "vowels"],
-  ["Vowel Inventory", "Vowel backness limitation", "", "Allow", "at most [d2]", "[d3]", VBACK, "vowels"],
-  ["Vowel Inventory", "Vowel backness symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d3]", VBACK, "vowels"],
+  ["Vowel Inventory", "Include vowel backness", "[do/don't]", "Include", "(If do: [d10])", "[d3]", VBACK, "vowels", "effect=include"],
+  ["Vowel Inventory", "Vowel backness limitation", "", "Allow", "at most [d2]", "[d3]", VBACK, "vowels", "effect=at-most"],
+  ["Vowel Inventory", "Vowel backness symmetry", "[do/don't]", "Include", "a symmetrical set of", "[d3]", VBACK, "vowels", "effect=symmetric"],
 ].map((r) => r.join("\t")).join("\n");
 const DEFAULT_SOURCE = [LIST_ROWS, CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
 // Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
@@ -573,6 +635,7 @@ const LEGACY_DEFAULTS = new Set([
   "4bz-1gdjhwy", // the 57 original cards
   "51d-tjrh9m",  // 57 cards plus 12 phoneme cards
   "5fl-dhqlu9",  // Phase 1: 60 cards plus 12 phoneme cards, lists written out in each card
+  "51c-1yp6ghk", // Phase 2: named lists, only family= tags
 ]);
 function sourceFingerprint(s) {
   let h = 0x811c9dc5;
@@ -865,7 +928,11 @@ function poolTerms(spec) {
   return spec.toLowerCase().split("+").map((s) => s.trim()).filter(Boolean).map((s) => POOL_ALIASES[s] || s);
 }
 function knownTag(tag) { return phonemes().some((p) => p.tags.has(tag)); }
-function phonemeInfo(sym) { return phonemes().find((p) => p.sym === sym) || null; }
+let phonemeIndex = null;
+function phonemeInfo(sym) {
+  if (!phonemeIndex) phonemeIndex = new Map(phonemes().map((p) => [p.sym, p]));
+  return phonemeIndex.get(sym) || null;
+}
 function poolFor(terms) { return phonemes().filter((p) => terms.every((t) => p.tags.has(t))); }
 const HAND_MAX = 20;
 // Deals up to HAND_MAX phonemes from the pool, leaving out symbols already taken.
@@ -1082,14 +1149,40 @@ function compile(tpl, lists = {}) {
 }
 // The optional last column: key=value pairs separated by semicolons, like "family=consonant-count; counts=consonants".
 const TAG_COLUMN = /^[a-z][\w-]*\s*=\s*[^;=]+(\s*;\s*[a-z][\w-]*\s*=\s*[^;=]+)*\s*;?$/i;
-const KNOWN_TAGS = ["family", "needs", "effect", "counts"];
-// Tags whose value must come from a fixed list. The others take any value.
-const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count"] };
+const KNOWN_TAGS = ["family", "needs", "effect", "counts", "feature"];
+// Totals a counts= tag can set, with where they show in the profile. "within" totals can't exceed that inventory.
+const COUNTS = {
+  consonants: { label: "consonants", area: "size" },
+  vowels: { label: "vowels", area: "size" },
+  diphthongs: { label: "diphthongs", area: "size" },
+  "marginal-phonemes": { label: "marginal phonemes", area: "size" },
+  "neutralized-phonemes": { label: "neutralized phonemes", area: "size", within: "phonemes" },
+  "allophonic-consonants": { label: "consonants with allophones", area: "size", within: "consonants" },
+  "allophonic-vowels": { label: "vowels with allophones", area: "size", within: "vowels" },
+  "consonant-open-cells": { label: "open consonant cells", area: "size" },
+  "vowel-open-cells": { label: "open vowel cells", area: "size" },
+  "minor-places": { label: "minor places", area: "place" },
+  "major-places": { label: "major places", area: "place" },
+  "vowel-features": { label: "contrastive vowel features", area: "vfeature" },
+  "common-phonemes": { label: "common phonemes", area: "budget", band: "common" },
+  "uncommon-phonemes": { label: "uncommon phonemes", area: "budget", band: "uncommon" },
+  "rare-phonemes": { label: "rare phonemes", area: "budget", band: "rare" },
+  "sandhi-environments": { label: "tone sandhi environments", area: "prosody" },
+  moras: { label: "moras per syllable", area: "syllable" },
+  "syllabic-consonants": { label: "non-vocalic nuclei", area: "syllable", within: "consonants" },
+  "foot-limits": { label: "foot structure limits", area: "syllable" },
+  "syllable-limits": { label: "syllable structure limits", area: "syllable" },
+  "word-limits": { label: "word structure limits", area: "syllable" },
+  "mutation-environments": { label: "consonant mutation environments", area: "process" },
+};
+// Tags whose value must come from a fixed list. needs= is checked against the card list once it's read.
+const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count"], counts: Object.keys(COUNTS) };
 const TAG_HELP = {
   family: "Only one card of this family can be in the deck.",
   needs: "Stays out of the pile until the deck has this.",
-  effect: "How the roll changes the language.",
+  effect: "How the roll changes the language: include (or rule out on don't), exclude, neutralize, at-most, symmetric or count.",
   counts: "Which total a number roll sets.",
+  feature: "What the card is about, for cards with no named list, like feature=pitch accent.",
 };
 function parseTags(col) {
   const out = {};
@@ -1153,8 +1246,24 @@ function parseLibrary(src) {
     card.suit = suitFor(card.rank);
     card.id = "c" + cards.length + "-" + card.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 30);
     card.line = ln + 1;
+    card.warnings.push(...shapeWarnings(card));
     cards.push(card);
   });
+  // needs= names something a kept card can put in the profile: a list option, a feature, or a total.
+  const terms = new Set(Object.keys(COUNTS).concat(PHONEME_TERMS));
+  for (const d of Object.values(lists)) d.options.forEach((o) => terms.add(normTerm(o)));
+  for (const c of cards) if (c.tags.feature) {
+    terms.add(c.tags.feature);
+    c.slots.forEach((s) => { if (s.options && !s.list && !s.options.every(isPolar)) s.options.forEach((o) => terms.add(normTerm(o))); });
+  }
+  for (const c of cards) {
+    if (!c.tags.needs) continue;
+    const unknown = needsTerms(c.tags.needs).filter((t) => !terms.has(t));
+    if (unknown.length) {
+      c.tagIssues.needs = `needs=${c.tags.needs}: nothing in this card list can add “${unknown.join("”, “")}”, so the card would never leave the set-aside list.`;
+      c.warnings.push(c.tagIssues.needs);
+    }
+  }
   return { cards, problems, lists };
 }
 
@@ -1200,8 +1309,9 @@ function ruleHTML(card, values, activeIdx) {
     if (it.p.t === "text") { html += lead + esc(it.text); continue; }
     const slot = card.slots[it.p.i], v = values[it.p.i];
     if (it.text !== null) {
-      const sup = slot.kind === "pick" && !slot.implicit ? `<sup>${v.n}</sup>` : "";
-      html += lead + `<span class="slot done" data-i="${it.p.i}"><span class="val">${esc(it.text)}</span>${sup}</span>`;
+      const sup = slot.kind === "pick" && !slot.implicit && !v.forced ? `<sup>${v.roll || v.n}</sup>` : "";
+      const forced = v.forced ? ` forced" title="${esc("Set without a roll. " + v.forced)}` : "";
+      html += lead + `<span class="slot done${forced}" data-i="${it.p.i}"><span class="val">${esc(it.text)}</span>${sup}</span>`;
     } else {
       const st = it.p.i === activeIdx ? " active" : "";
       const chip = slot.kind === "pool" ? `/?/ ${dieName(slot)}` : dieName(slot);
@@ -1228,29 +1338,471 @@ function rollSummary(card, values) {
   return card.slots.map((s, i) => {
     const v = values[i];
     if (!v || v.skipped) return `${dieName(s)} skipped`;
-    if (s.kind === "number") return isModified(s) ? `${dieName(s)} → ${v.label} (rolled ${v.n})` : `${dieName(s)} → ${v.n}`;
+    if (v.forced) return `${dieName(s)} → ${v.label} (no roll, the only one that fits)`;
+    // "d12 as d9": the die shrank because some values clashed with the deck.
+    const die = v.of && v.of < s.sides ? `${dieName(s)} as d${v.of}` : dieName(s);
+    if (s.kind === "number") return isModified(s) ? `${die} → ${v.label} (rolled ${v.n})` : `${die} → ${v.n}`;
     if (s.kind === "choice") return `coin → ${v.label}`;
     if (s.kind === "pool") {
       if (!v.sym) return `${s.spec}: none left`;
       const p = phonemeInfo(v.sym);
       return `d${v.of} → ${v.n} · /${v.sym}/${p ? ` · ${fmtPct(p.pct)} of languages` : ""}`;
     }
-    return `${dieName(s)} → ${v.n} · ${v.label}`;
+    return `${die} → ${v.roll || v.n} · ${v.label}`;
   });
 }
-// What each roll landed on, with the named list and feature type behind it. Stored on deck entries
-// as entry.rolled for the language profile (plan, Phase 3), so it doesn't have to re-read the card text.
+// What one roll landed on, with the named list and feature type behind it. Deck entries store these as
+// entry.rolled, so the profile doesn't have to re-read the card text. A slot not rolled yet is "pending".
+function slotFact(slot, v) {
+  if (!v) return { pending: true, kind: slot.kind, polar: slot.kind === "choice" && slot.options.every(isPolar) };
+  if (v.skipped) return { skipped: true };
+  if (slot.kind === "number") return { kind: "number", value: Number(v.label) };
+  if (slot.kind === "pool") return { kind: "pool", value: v.sym || null };
+  const f = { kind: slot.kind, value: v.label };
+  if (slot.list) f.list = slot.list;
+  if (slot.types && slot.types[v.n - 1]) f.type = slot.types[v.n - 1];
+  return f;
+}
 function rolledFacts(card, values) {
-  return card.slots.map((s, i) => {
-    const v = values[i];
-    if (!v || v.skipped) return { skipped: true };
-    if (s.kind === "number") return { kind: "number", value: Number(v.label) };
-    if (s.kind === "pool") return { kind: "pool", value: v.sym || null };
-    const f = { kind: s.kind, value: v.label };
-    if (s.list) f.list = s.list;
-    if (s.types && s.types[v.n - 1]) f.type = s.types[v.n - 1];
-    return f;
-  });
+  return card.slots.map((s, i) => { const f = slotFact(s, values[i]); return f.pending ? { skipped: true } : f; });
+}
+
+/* ---------- Language profile ----------
+   The profile is what the kept cards commit the language to. It is rebuilt from the deck whenever the deck
+   changes, and never stored. Each kept card turns its tags and rolls into writes (cardWrites), and each
+   mandated phoneme adds its features (phonemeWrites). buildProfile folds the writes into a lower and upper
+   bound per feature, plus totals, and profileClashes lists every contradiction, budget or dependency problem.
+   A roll option is crossed out when adding it would cause a clash the deck doesn't already have. */
+
+const isPolar = (o) => /^(do|don['’]t)$/i.test(String(o).trim());
+const normTerm = (s) => String(s).toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim();
+const needsTerms = (v) => String(v).split(",").map(normTerm).filter(Boolean);
+// Which part of the language a named list is about. Other lists are their own area, named after the list.
+const LIST_AREA = { place: "place", manner: "manner", special: "special", vheight: "height", vback: "backness", vfeature: "vfeature" };
+// Kinds of consonant or vowel: how many of them a card asks for can't exceed the inventory.
+const UNIT = { place: "consonants", manner: "consonants", special: "consonants", "place category": "consonants", voicing: "consonants",
+  height: "vowels", backness: "vowels", rounding: "vowels", vfeature: "vowels" };
+// Terms that only mandated phonemes write, so needs= may name them too.
+const PHONEME_TERMS = ["quantity", "implosives", "clicks", "rounded", "unrounded", "velarized", "pharyngealized"];
+// Ruling out a place category rules out each of its places. Including one needs at least one of them open.
+const PLACE_GROUPS = {
+  "place category:peripheral": ["bilabial", "labiodental", "velar", "dorsal", "uvular"],
+  "place category:coronal": ["dental", "alveolar", "postalveolar", "retroflex"],
+};
+// Major places (articulators) and the places under each, for Total major places.
+const MAJOR_PLACES = {
+  labial: ["bilabial", "labiodental"], coronal: ["dental", "alveolar", "postalveolar", "retroflex"],
+  dorsal: ["palatal", "velar", "dorsal", "uvular"], pharyngeal: ["pharyngeal"], laryngeal: ["glottal"],
+};
+// Including one thing commits the language to another.
+const IMPLIES = {
+  "quantity sensitivity": [{ key: "quantity" }],
+  "vfeature:length": [{ key: "quantity" }],
+  quantity: [{ total: "moras", min: 2 }],
+};
+// Phoneme places outside the @place list.
+const PLACE_OF = { "alveolo-palatal": "palatal", epiglottal: "pharyngeal" };
+
+function splitKey(key) { const i = key.indexOf(":"); return i < 0 ? [null, key] : [key.slice(0, i), key.slice(i + 1)]; }
+const FEATURE_NOUN = { quantity: "a quantity distinction", voicing: "a voicing distinction" };
+function keyLabel(key) {
+  const [area, term] = splitKey(key);
+  if (!area) return FEATURE_NOUN[term] || term;
+  if (area === "place" || area === "manner" || area === "place category") return `${term} consonants`;
+  if (area === "special") return /s$|ion$/.test(term) ? term : `${term} consonants`;
+  if (area === "height" || area === "backness" || area === "rounding") return `${term} vowels`;
+  if (area === "vfeature") return term === "tone" ? "tone" : `vowel ${term}`;
+  return `${area}: ${term}`;
+}
+// The short name used inside a profile area, where the area already says what kind of thing it is.
+function keyShort(key) {
+  const [area, term] = splitKey(key);
+  if (!area) return term;
+  return ["place", "manner", "special", "height", "backness", "rounding", "vfeature"].includes(area) ? term : `${area}: ${term}`;
+}
+function amountPhrase(key, n, how) {
+  const label = keyLabel(key);
+  if (/s$/.test(label)) return `${how} ${n} ${n === 1 ? label.slice(0, -1) : label}`;
+  const [area, term] = splitKey(key);
+  const unit = UNIT[area || term];
+  return unit ? `${label} for ${how} ${countPhrase(unit, n)}` : `${label} (${how} ${n})`;
+}
+// "1 mora per syllable", "3 moras per syllable".
+function countPhrase(label, n) {
+  if (n !== 1) return `${n} ${label}`;
+  const m = label.match(/^(.*?)(\S+)( (?:per|with) .*)?$/);
+  return `1 ${m[1]}${m[2] === "nuclei" ? "nucleus" : m[2].replace(/s$/, "")}${m[3] || ""}`;
+}
+const countLabel = (name) => (COUNTS[name] ? COUNTS[name].label : name);
+function srcName(src) {
+  if (!src) return "Your deck";
+  if (src.plain) return upperLead(src.name);
+  if (src.cand) return src.sym ? "This phoneme" : "This card";
+  return `“${src.name}”` + (src.sym ? ` (/${src.sym}/)` : "");
+}
+const universeKeys = (u, area, fallback) => (u && u[area] ? u[area] : fallback);
+
+// Turns a card's tags and rolls into profile writes. facts is one slotFact per slot.
+// Missing information makes the weakest claim: an include whose count isn't rolled yet needs only one.
+function cardWrites(tags, facts, src) {
+  const out = [];
+  if (tags.needs && !src.cand) for (const t of needsTerms(tags.needs)) out.push({ needs: t, src });
+  const effect = tags.effect || (tags.counts ? "count" : tags.feature ? "include" : null);
+  if (!effect) return out;
+  let neg = false, num = null;
+  const named = [], inline = [];
+  for (const f of facts) {
+    if (!f || f.skipped || f.kind === "pool") continue;
+    if (f.kind === "choice" && (f.polar || (!f.pending && isPolar(f.value)))) {
+      if (f.pending) return out; // do or don't isn't known yet
+      neg = /^don/i.test(f.value);
+      continue;
+    }
+    if (f.kind === "number") { if (!f.pending) num = f.value; continue; }
+    if (f.pending) return out; // what the card is about isn't known yet
+    (f.list ? named : inline).push(f);
+  }
+  if (tags.counts) {
+    if (neg || num == null) return out;
+    if (effect === "at-most") out.push({ total: tags.counts, max: num, src });
+    else if (effect === "count" || effect === "include") out.push({ total: tags.counts, min: num, max: num, src });
+    return out;
+  }
+  // Each key comes with how the profile panel shows it, keeping the card's own spelling.
+  const keys = named.map((f) => [(LIST_AREA[f.list] || f.list) + ":" + normTerm(f.value), String(f.value)]);
+  if (inline.length) { if (!tags.feature) return out; keys.push([tags.feature + ":" + inline.map((f) => normTerm(f.value)).join(" "), `${tags.feature}: ${inline.map((f) => f.value).join(" ")}`]); }
+  if (!keys.length) { if (!tags.feature) return out; keys.push([tags.feature, tags.feature]); }
+  for (const [key, disp] of keys) {
+    const w = (x) => out.push({ key, disp, src, ...x });
+    if (effect === "include") w(neg ? { max: 0 } : { min: num != null && num > 0 ? num : 1 });
+    else if (effect === "exclude") { if (!neg) w({ max: 0 }); }
+    else if (effect === "at-most") { if (!neg && num != null) w({ max: num }); }
+    else if (effect === "neutralize") { if (!neg) w({ min: 1, flag: "neutralized" }); }
+    else if (effect === "symmetric") w(neg ? { flag: "not symmetric" } : { min: 1, flag: "symmetric" });
+    else if (effect === "count") { if (!neg && num != null) w({ min: num, max: num }); }
+  }
+  return out;
+}
+// A mandated phoneme writes each of its features, adding one to that feature's count.
+function phonemeWrites(sym, src) {
+  const p = phonemeInfo(sym) || describePhoneme(sym);
+  if (!p) return [];
+  const s = { ...src, sym };
+  const out = [{ mandate: sym, cls: p.cls, band: p.band || null, src: s }];
+  const add = (key) => out.push({ key, ph: 1, src: s });
+  if (p.cls === "vowel") {
+    add("height:" + p.height); add("backness:" + p.back); add("rounding:" + (p.rounded ? "rounded" : "unrounded"));
+    if (p.nasalized) add("vfeature:nasality");
+    if (p.phonation) add("vfeature:phonation type");
+    if (p.long) add("vfeature:length");
+    return out;
+  }
+  for (const pl of new Set(p.places.map((x) => PLACE_OF[x] || x))) add("place:" + pl);
+  add("manner:" + p.manner);
+  if (p.lateral) add("manner:lateral");
+  if (p.coarticulated) add("special:co-articulated");
+  if (p.airstream === "ejective") add("special:ejectives");
+  else if (p.airstream === "implosive") add("special:implosives");
+  else if (p.airstream === "click") add("special:clicks");
+  p.secondary.forEach((x) => add("special:" + x));
+  if (p.aspirated) add("special:aspirated");
+  if (p.prenasalized) add("special:prenasalization");
+  if (p.sibilant && p.manner === "fricative") add("special:sibilant fricative");
+  if (p.manner === "approximant" && !p.lateral && p.places.some((x) => x === "palatal" || x === "velar")) add("special:semivowels");
+  if (p.long) add("quantity");
+  return out;
+}
+
+function buildProfile(writes, universe) {
+  const keys = new Map(), totals = new Map(), mandated = [], needs = [];
+  const K = (key) => {
+    let e = keys.get(key);
+    if (!e) keys.set(key, (e = { key, min: 0, minSrc: null, ph: 0, phSrc: [], max: Infinity, maxSrc: null, flags: {}, srcs: [], need: 0, needSrc: null, needSrcs: [] }));
+    return e;
+  };
+  const T = (name) => {
+    let t = totals.get(name);
+    if (!t) totals.set(name, (t = { name, min: 0, minSrc: null, max: Infinity, maxSrc: null, srcs: [] }));
+    return t;
+  };
+  const lo = (e, n, src) => { if (n > e.min) { e.min = n; e.minSrc = src; } };
+  const hi = (e, n, src) => { if (n < e.max) { e.max = n; e.maxSrc = src; } };
+  for (const w of writes) {
+    if (w.key) {
+      const e = K(w.key);
+      e.srcs.push(w.src);
+      if (w.disp && !e.disp) e.disp = w.disp;
+      if (w.ph) { e.ph += w.ph; e.phSrc.push(w.src); }
+      if (w.min != null) lo(e, w.min, w.src);
+      if (w.max != null) {
+        hi(e, w.max, w.src);
+        if (w.max === 0 && PLACE_GROUPS[w.key]) for (const p of PLACE_GROUPS[w.key]) { const m = K("place:" + p); m.srcs.push(w.src); hi(m, 0, { ...w.src, via: w.key }); }
+      }
+      if (w.flag) (e.flags[w.flag] = e.flags[w.flag] || []).push(w.src);
+    } else if (w.total) {
+      const t = T(w.total);
+      t.srcs.push(w.src);
+      if (w.min != null) lo(t, w.min, w.src);
+      if (w.max != null) hi(t, w.max, w.src);
+    } else if (w.mandate) mandated.push(w);
+    else if (w.needs) needs.push(w);
+  }
+  // A feature needs whichever is more: what its cards ask for, or how many mandated phonemes have it.
+  for (const e of keys.values()) {
+    e.need = Math.max(e.min, e.ph);
+    const byPhonemes = e.ph > e.min;
+    e.needSrcs = byPhonemes ? e.phSrc : [e.minSrc];
+    e.needSrc = byPhonemes && e.phSrc.length > 1 ? { name: "your mandated phonemes", plain: true, cand: e.phSrc.some((x) => x.cand) } : e.needSrcs[0];
+  }
+  for (let pass = 0, changed = true; changed && pass < 6; pass++) {
+    changed = false;
+    for (const e of [...keys.values()]) {
+      if (e.need < 1 || !IMPLIES[e.key]) continue;
+      for (const imp of IMPLIES[e.key]) {
+        if (imp.key) { const t = K(imp.key); if (t.need < 1) { t.need = 1; t.needSrc = e.needSrc; t.needSrcs = e.needSrcs; t.implied = e.key; changed = true; } }
+        else { const t = T(imp.total); if (t.min < imp.min) { t.min = imp.min; t.minSrc = e.needSrc; t.implied = e.key; changed = true; } }
+      }
+    }
+  }
+  return { keys, totals, mandated, needs, universe: universe || {} };
+}
+// Whether the profile has something: a feature included, or a total above zero.
+function hasTerm(prof, term) {
+  for (const e of prof.keys.values()) if (e.need >= 1 && (e.key === term || e.key.endsWith(":" + term))) return true;
+  const t = prof.totals.get(term);
+  return !!(t && t.min >= 1);
+}
+// Smallest consonant, vowel and phoneme counts the deck needs, each with the cards behind it.
+function requirements(prof) {
+  const out = {};
+  const best = (unit, cands) => { out[unit] = cands.reduce((a, b) => (b.n > a.n ? b : a), { n: 0, srcs: [] }); };
+  const cons = [], vows = [];
+  const sum = (area) => { let n = 0; const srcs = []; for (const e of prof.keys.values()) if (e.key.startsWith(area + ":") && e.need > 0) { n += e.need; srcs.push(...e.needSrcs); } return { n, srcs }; };
+  cons.push(sum("place"));
+  vows.push(sum("height"), sum("backness"));
+  for (const e of prof.keys.values()) {
+    const [area, term] = splitKey(e.key);
+    const unit = UNIT[area || term];
+    if (unit && e.need > 0) (unit === "consonants" ? cons : vows).push({ n: e.need, srcs: e.needSrcs });
+  }
+  const mc = prof.mandated.filter((m) => m.cls === "consonant"), mv = prof.mandated.filter((m) => m.cls === "vowel");
+  cons.push({ n: mc.length, srcs: mc.map((m) => m.src) });
+  vows.push({ n: mv.length, srcs: mv.map((m) => m.src) });
+  for (const t of prof.totals.values()) {
+    const w = COUNTS[t.name] && COUNTS[t.name].within;
+    if (w === "consonants") cons.push({ n: t.min, srcs: [t.minSrc] });
+    if (w === "vowels") vows.push({ n: t.min, srcs: [t.minSrc] });
+  }
+  best("consonants", cons); best("vowels", vows);
+  // Frequency bands don't overlap, so their counts add up. A mandated phoneme counts toward its band.
+  const bands = {};
+  let n = 0;
+  const srcs = [];
+  for (const b of ["common", "uncommon", "rare"]) {
+    const t = prof.totals.get(b + "-phonemes"), m = prof.mandated.filter((x) => x.band === b);
+    const need = Math.max(t ? t.min : 0, m.length);
+    bands[b] = { card: t ? t.min : 0, mandated: m.length, need };
+    n += need;
+    if (need) srcs.push(t && t.min >= m.length ? t.minSrc : m[0].src);
+  }
+  const neut = prof.totals.get("neutralized-phonemes");
+  out.phonemes = neut && neut.min > n ? { n: neut.min, srcs: [neut.minSrc] } : { n, srcs };
+  out.bands = bands;
+  return out;
+}
+
+// A clash between something the deck needs (a) and something that limits it (b).
+function mkClash(key, a, b) {
+  return { key, a, b, text: b ? `${a.long}, but ${b.short}.` : a.long + "." };
+}
+// The clash as a reason a candidate can't be used: just the side that isn't the candidate.
+function clashReason(c) {
+  if (!c) return "It wouldn’t fit your deck.";
+  const inA = c.a.srcs.some((s) => s && s.cand), inB = c.b && c.b.srcs.some((s) => s && s.cand);
+  if (c.b && inA && !inB) return c.b.long + ".";
+  if (c.b && inB && !inA) return c.a.long + ".";
+  return c.text;
+}
+function profileClashes(prof) {
+  const out = [], { keys, totals, universe } = prof;
+  const them = (label) => (/s$/.test(label) ? "them" : "it");
+  // 1. Contradictions: a feature needed by one card and capped or ruled out by another.
+  for (const e of keys.values()) {
+    if (!(e.need > e.max)) continue;
+    const label = keyLabel(e.key);
+    const a = { srcs: e.needSrcs, long: `${srcName(e.needSrc)} needs ${e.need > 1 ? amountPhrase(e.key, e.need, "at least") : label}` };
+    const via = e.maxSrc && e.maxSrc.via;
+    const b = e.max === 0
+      ? { srcs: [e.maxSrc], long: `${srcName(e.maxSrc)} rules out ${via ? keyLabel(via) : label}`, short: `${srcName(e.maxSrc)} rules ${via ? "out " + keyLabel(via) : them(label) + " out"}` }
+      : { srcs: [e.maxSrc], long: `${srcName(e.maxSrc)} allows ${amountPhrase(e.key, e.max, "at most")}`, short: `${srcName(e.maxSrc)} allows at most ${e.max}` };
+    out.push(mkClash("key:" + e.key, a, b));
+  }
+  // 2. A place category needs at least one of its places open.
+  for (const [g, members] of Object.entries(PLACE_GROUPS)) {
+    const e = keys.get(g);
+    if (!e || e.need < 1) continue;
+    const closed = members.map((p) => keys.get("place:" + p)).filter((m) => m && m.max === 0);
+    if (closed.length < members.length) continue;
+    const srcs = closed.map((m) => m.maxSrc);
+    out.push(mkClash("group:" + g, { srcs: [e.needSrc], long: `${srcName(e.needSrc)} needs ${keyLabel(g)}` },
+      { srcs, long: `Your deck rules out every ${splitKey(g)[1]} place`, short: `your deck rules out every ${splitKey(g)[1]} place` }));
+  }
+  // 3. Budget: what the deck needs against the inventory size.
+  const req = requirements(prof);
+  const cap = (n) => { const t = totals.get(n); return t ? t.max : Infinity; };
+  for (const unit of ["consonants", "vowels"]) {
+    const t = totals.get(unit), r = req[unit];
+    if (!t || !(r.n > t.max)) continue;
+    const single = new Set(r.srcs.map((x) => x && x.id)).size === 1 && r.srcs[0];
+    out.push(mkClash("total:" + unit,
+      { srcs: r.srcs, long: single ? `${srcName(single)} needs at least ${r.n} ${unit}` : `Your deck needs at least ${r.n} ${unit}` },
+      { srcs: [t.maxSrc], long: `${srcName(t.maxSrc)} allows only ${countPhrase(unit, t.max)}`, short: `${srcName(t.maxSrc)} allows only ${t.max}` }));
+  }
+  const room = cap("consonants") + cap("vowels");
+  if (req.phonemes.n > room) {
+    const C = totals.get("consonants"), V = totals.get("vowels");
+    out.push(mkClash("total:phonemes",
+      { srcs: req.phonemes.srcs, long: `Your deck needs at least ${req.phonemes.n} phonemes from the frequency and neutralization cards` },
+      { srcs: [C.maxSrc, V.maxSrc], long: `${srcName(C.maxSrc)} and ${srcName(V.maxSrc)} allow only ${room} phonemes`, short: `the inventory has only ${room}` }));
+  }
+  // 4. Totals of distinct features: present ones can't exceed the total, and enough must still be open.
+  const sets = [
+    { name: "minor-places", items: universeKeys(universe, "place", DEFAULT_UNIVERSE.place).map((p) => ["place:" + p]), noun: "places" },
+    { name: "major-places", items: Object.values(MAJOR_PLACES).map((ps) => ps.map((p) => "place:" + p)), noun: "major places" },
+    { name: "vowel-features", items: universeKeys(universe, "vfeature", DEFAULT_UNIVERSE.vfeature).map((f) => ["vfeature:" + f]), noun: "vowel features" },
+  ];
+  for (const s of sets) {
+    const t = totals.get(s.name);
+    if (!t) continue;
+    const present = s.items.filter((ks) => ks.some((k) => keys.has(k) && keys.get(k).need >= 1));
+    const open = s.items.filter((ks) => ks.some((k) => !keys.has(k) || keys.get(k).max > 0));
+    const label = countLabel(s.name);
+    if (present.length > t.max) {
+      const srcs = present.map((ks) => keys.get(ks.find((k) => keys.has(k) && keys.get(k).need >= 1)).needSrc);
+      out.push(mkClash("total:" + s.name, { srcs, long: `Your deck already has ${countPhrase(s.noun, present.length)}` },
+        { srcs: [t.maxSrc], long: `${srcName(t.maxSrc)} allows only ${countPhrase(label, t.max)}`, short: `${srcName(t.maxSrc)} allows only ${t.max}` }));
+    }
+    if (open.length < t.min) {
+      const srcs = s.items.filter((ks) => !open.includes(ks)).map((ks) => keys.get(ks[0]).maxSrc);
+      const still = open.length === 1 ? "is still open" : "are still open";
+      out.push(mkClash("open:" + s.name, { srcs: [t.minSrc], long: `${srcName(t.minSrc)} needs ${countPhrase(label, t.min)}` },
+        { srcs, long: `${open.length ? "Only " + countPhrase(s.noun, open.length) + " " + still : "None of the " + s.noun + " are still open"}`, short: open.length ? `only ${open.length} ${still}` : "none are still open" }));
+    }
+  }
+  const minor = totals.get("minor-places"), major = totals.get("major-places");
+  if (minor && major && major.min > minor.max) {
+    out.push(mkClash("total:major-minor", { srcs: [major.minSrc], long: `${srcName(major.minSrc)} needs ${countPhrase("major places", major.min)}, each with at least one minor place` },
+      { srcs: [minor.maxSrc], long: `${srcName(minor.maxSrc)} allows only ${countPhrase("minor places", minor.max)}`, short: `${srcName(minor.maxSrc)} allows only ${minor.max}` }));
+  }
+  // 5. Any other total with a floor above its ceiling, like moras per syllable.
+  for (const t of totals.values()) {
+    if (!(t.min > t.max) || out.some((c) => c.key === "total:" + t.name)) continue;
+    const label = countLabel(t.name);
+    out.push(mkClash("total:" + t.name, { srcs: [t.minSrc], long: `${srcName(t.minSrc)} needs at least ${countPhrase(label, t.min)}` },
+      { srcs: [t.maxSrc], long: `${srcName(t.maxSrc)} allows at most ${countPhrase(label, t.max)}`, short: `${srcName(t.maxSrc)} allows at most ${t.max}` }));
+  }
+  // 6. Dependencies: a kept card whose prerequisite has left the deck.
+  for (const w of prof.needs) {
+    if (hasTerm(prof, w.needs)) continue;
+    out.push(mkClash(`needs:${w.src.id}:${w.needs}`, { srcs: [w.src], long: `${srcName(w.src)} needs ${w.needs}, and nothing in your deck includes it now` }, null));
+  }
+  return out;
+}
+
+// The kept deck as a profile, ready to test candidates against. cardFor looks up a card by id.
+function universeFrom(lists) {
+  const u = {};
+  for (const d of Object.values(lists || {})) u[LIST_AREA[d.name] || d.name] = d.options.map(normTerm);
+  return u;
+}
+// The built-in lists, for card lists that leave out @place or @vfeature.
+const DEFAULT_UNIVERSE = universeFrom(parseLibrary(LIST_ROWS).lists);
+function profileBase(entries, cardFor, universe) {
+  const writes = [], taken = new Set();
+  let untracked = 0;
+  for (const e of entries) {
+    const card = cardFor(e.cardId);
+    const tags = (card && card.name === e.name ? card.tags : e.tags) || {};
+    const src = { id: e.id, name: e.name };
+    if (Array.isArray(e.rolled)) writes.push(...cardWrites(tags, e.rolled, src));
+    else if (tags.effect || tags.counts || tags.feature) untracked++;
+    for (const sym of e.phonemes || []) { taken.add(sym); writes.push(...phonemeWrites(sym, src)); }
+  }
+  const prof = buildProfile(writes, universe);
+  const clashes = profileClashes(prof);
+  return { writes, prof, clashes, clashKeys: new Set(clashes.map((c) => c.key)), universe, taken, untracked };
+}
+const CAND = { id: "cand", name: "this card", cand: true };
+// Cards that can't clash: no profile tags and no phoneme pool.
+function cardChecks(card) {
+  return !!(card.tags.effect || card.tags.counts || card.tags.feature) || card.slots.some((s) => s.kind === "pool");
+}
+// The first clash that this card, filled in this far, would add to the deck. null if it fits.
+function newClash(base, card, values) {
+  const w = cardWrites(card.tags, card.slots.map((s, i) => slotFact(s, values[i])), CAND);
+  values.forEach((v) => { if (v && v.sym) w.push(...phonemeWrites(v.sym, CAND)); });
+  if (!w.length) return null;
+  for (const c of profileClashes(buildProfile(base.writes.concat(w), base.universe))) if (!base.clashKeys.has(c.key)) return c;
+  return null;
+}
+function withValue(values, i, v) { const out = values.slice(); out[i] = v; return out; }
+// Every value a slot could take, before any are crossed out.
+function slotCandidates(slot, values, base) {
+  if (slot.kind === "number") return Array.from({ length: slot.sides }, (_, k) => ({ n: k + 1, label: String((k + 1) * (slot.mult || 1) + (slot.offset || 0)) }));
+  if (slot.kind === "pool") {
+    const taken = new Set(base.taken);
+    values.forEach((v) => { if (v && v.sym) taken.add(v.sym); });
+    return poolFor(slot.terms).filter((p) => !taken.has(p.sym)).map((p, k) => ({ n: k + 1, sym: p.sym, label: phonemeLabel(p.sym) }));
+  }
+  return slot.options.slice(0, Math.min(slot.sides, slot.options.length)).map((o, k) => ({ n: k + 1, label: o }));
+}
+// Can the rest of the card, from slot `from` on, be filled without a clash? Returns { ok, clash }.
+function canFinish(card, values, from, base) {
+  const clash = newClash(base, card, values);
+  if (clash) return { ok: false, clash };
+  let i = from;
+  while (i < card.slots.length && values[i]) i++;
+  if (i >= card.slots.length) return { ok: true };
+  const slot = card.slots[i];
+  if (condState(slot.cond, values) === "unmet") return canFinish(card, withValue(values, i, { skipped: true }), i + 1, base);
+  let first = null;
+  for (const c of slotCandidates(slot, values, base)) {
+    const r = canFinish(card, withValue(values, i, c), i + 1, base);
+    if (r.ok) return r;
+    first = first || r.clash;
+  }
+  return { ok: false, clash: first };
+}
+// Which values of slot i are still open, and why the others are crossed out.
+function slotChoices(card, values, i, base) {
+  const ok = [], crossed = [];
+  for (const c of slotCandidates(card.slots[i], values, base)) {
+    const r = cardChecks(card) ? canFinish(card, withValue(values, i, c), i + 1, base) : { ok: true };
+    if (r.ok) ok.push(c); else crossed.push({ ...c, reason: clashReason(r.clash) });
+  }
+  return { ok, crossed };
+}
+// Why a card can't be in the pile right now, or null. families maps a family to the kept card that holds it.
+function blockReason(card, base, families) {
+  if (card.family && families.has(card.family)) return { kind: "family", text: `Only one card of its family fits in a deck, and “${families.get(card.family)}” is there.` };
+  if (card.tags.needs) {
+    const missing = needsTerms(card.tags.needs).filter((t) => !hasTerm(base.prof, t));
+    if (missing.length) return { kind: "needs", text: `Needs ${missing.join(" and ")} in your deck first.` };
+  }
+  if (!cardChecks(card)) return null;
+  const r = canFinish(card, [], 0, base);
+  return r.ok ? null : { kind: "clash", text: `No roll fits your deck. ${clashReason(r.clash)}` };
+}
+// Warnings about tags that don't match the card's dice.
+function shapeWarnings(card) {
+  const t = card.tags, out = [];
+  if (!t.effect && !t.counts) return out;
+  const nums = card.slots.filter((s) => s.kind === "number").length;
+  const named = card.slots.some((s) => s.list), inline = card.slots.some((s) => s.options && !s.list && !s.options.every(isPolar));
+  if (t.counts && !nums) out.push(`counts=${t.counts} needs a number to roll, like [d10].`);
+  if (t.effect === "at-most" && !nums) out.push("effect=at-most needs a number to roll for the limit.");
+  if (!t.counts && t.effect && !named && !t.feature) out.push(`effect=${t.effect} needs a named list (like [@place]) or a feature= tag to say what it ${t.effect === "exclude" ? "rules out" : "includes"}.`);
+  return out;
 }
 
 /* ---------- Dice ---------- */
@@ -1290,8 +1842,9 @@ function clack(strength) {
 }
 
 class Die {
-  constructor(tray, { sides, kind = "number", options = null, loose = false, onResult }) {
-    this.tray = tray; this.sides = sides; this.kind = kind; this.options = options; this.onResult = onResult;
+  // faces: the numbers printed on a die that rolls only some values (face n shows faces[n - 1]).
+  constructor(tray, { sides, kind = "number", options = null, faces = null, loose = false, onResult }) {
+    this.tray = tray; this.sides = sides; this.kind = kind; this.options = options; this.faces = faces; this.onResult = onResult;
     this.x = 0; this.y = 0; this.rot = (Math.random() - 0.5) * 30; this.rolling = false; this.locked = false;
     const shape = shapeFor(kind, sides); this.sym = shape.sym;
     const el = document.createElement("button");
@@ -1305,7 +1858,7 @@ class Die {
     tray.appendChild(el);
     this.bind();
   }
-  faceLabel(n) { return this.kind === "choice" ? this.options[(n - 1) % this.options.length] : String(n); }
+  faceLabel(n) { return this.kind === "choice" ? this.options[(n - 1) % this.options.length] : String(this.faces ? this.faces[n - 1] : n); }
   showFace(n) {
     const t = this.faceLabel(n);
     this.face.textContent = t;
@@ -1421,9 +1974,13 @@ const state = {
   source: ((s) => (typeof s !== "string" || isLegacyDefault(s) ? DEFAULT_SOURCE : s))(ls.get("pc.source", DEFAULT_SOURCE)),
   library: [],
   pile: ls.get("pc.pile", null),
-  aside: ls.get("pc.aside", []), // card ids kept out of the pile because a card of their family is in the deck
+  lists: {},
+  byId: new Map(),
+  aside: ls.get("pc.aside", []), // card ids kept out of the pile: their family is taken, their prerequisite is missing, or no roll fits
+  asideWhy: new Map(), // card id -> { kind, text }
   deck: ls.get("pc.deck", []),
-  current: null, // { card, values: [], idx }
+  profile: null, // the deck as a language profile (profileBase); rebuilt whenever the deck or card list changes
+  current: null, // { card, values: [], idx, hands, allowed }
   dice: [],
   busy: false,
 };
@@ -1431,11 +1988,15 @@ const store = { mode: "local", db: null, base: null, migrated: false };
 
 function applySource(src, { reshuffle } = { reshuffle: true }) {
   state.source = src;
-  state.library = parseLibrary(src).cards;
+  const lib = parseLibrary(src);
+  state.library = lib.cards;
+  state.lists = lib.lists;
+  state.byId = new Map(lib.cards.map((c) => [c.id, c]));
+  rebuildProfile();
   const ids = new Set(state.library.map((c) => c.id));
   if (reshuffle || !Array.isArray(state.pile) || state.pile.some((id) => !ids.has(id))) reshufflePile(false);
   else addNewCards();
-  renderPile();
+  refreshProfile();
 }
 // Cards added to the list since the pile was dealt (like new built-in cards) are shuffled into the pile.
 function addNewCards() {
@@ -1458,44 +2019,63 @@ function reshufflePile(announce = true) {
   state.aside = [];
   ls.set("pc.pile", state.pile);
   ls.set("pc.known", state.library.map((c) => c.id));
-  syncFamilies();
+  syncPile();
   renderPile();
+  renderProfile();
   if (announce) {
     toast(`Shuffled ${state.pile.length} card${state.pile.length === 1 ? "" : "s"} into the pile.`);
     if (!RM) $("pile").animate([{ transform: "rotate(0)" }, { transform: "rotate(-4deg)" }, { transform: "rotate(3deg)" }, { transform: "rotate(0)" }], { duration: 420 });
   }
 }
 
-/* ---------- Families ----------
-   Only one card per family (the family= tag) can be in the deck. While one is there, the rest of its
-   family wait in state.aside, and they go back into the pile when it leaves the deck. */
+/* ---------- Pile filter ----------
+   After every change to the deck, each card in the pile is checked against the profile. A card is set aside
+   (state.aside) when a card of its family is in the deck, when its needs= prerequisite isn't there, or when
+   no roll of it fits. Set-aside cards go back into the pile as soon as the reason goes away. */
 // False while an account deck is still loading, so an empty deck doesn't return every set-aside card.
 let deckReady = !(window.claude && typeof window.claude.use === "function");
 function familyOf(cardId) {
-  const card = state.library.find((c) => c.id === cardId);
+  const card = state.byId.get(cardId);
   return card ? card.family : null;
 }
-function takenFamilies() {
-  const out = new Set();
-  for (const e of state.deck) { const f = e.family || familyOf(e.cardId); if (f) out.add(f); }
+// Family -> the name of the kept card that holds it.
+function familyHolders() {
+  const out = new Map();
+  for (const e of state.deck) { const f = e.family || familyOf(e.cardId); if (f && !out.has(f)) out.set(f, e.name); }
   return out;
 }
-function syncFamilies() {
-  if (!deckReady || !Array.isArray(state.pile)) return { moved: [], back: [] };
-  const taken = takenFamilies(), ids = new Set(state.library.map((c) => c.id));
-  const blocked = (id) => { const f = familyOf(id); return !!f && taken.has(f); };
-  const moved = state.pile.filter(blocked);
-  const back = state.aside.filter((id) => ids.has(id) && !blocked(id) && !state.pile.includes(id) && !(state.current && state.current.card.id === id));
-  if (!moved.length && !back.length && state.aside.every((id) => ids.has(id) && blocked(id))) return { moved, back };
-  state.pile = state.pile.filter((id) => !blocked(id));
-  state.aside = state.aside.filter((id) => ids.has(id) && blocked(id) && !moved.includes(id)).concat(moved);
+function rebuildProfile() {
+  state.profile = profileBase(state.deck, (id) => state.byId.get(id), universeFrom(state.lists));
+}
+function syncPile() {
+  if (!deckReady || !Array.isArray(state.pile) || !state.profile) return { moved: [], back: [] };
+  const ids = new Set(state.library.map((c) => c.id)), fams = familyHolders();
+  const why = new Map();
+  for (const id of new Set(state.pile.concat(state.aside))) {
+    const card = state.byId.get(id);
+    const r = card && blockReason(card, state.profile, fams);
+    if (r) why.set(id, r);
+  }
+  state.asideWhy = why;
+  const inPlay = state.current ? state.current.card.id : null;
+  const moved = state.pile.filter((id) => why.has(id));
+  const back = state.aside.filter((id) => ids.has(id) && !why.has(id) && !state.pile.includes(id) && id !== inPlay);
+  state.pile = state.pile.filter((id) => !why.has(id));
+  state.aside = [...new Set(state.aside.filter((id) => ids.has(id) && why.has(id)).concat(moved))];
   for (const id of back) state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, id);
   ls.set("pc.pile", state.pile);
   ls.set("pc.aside", state.aside);
   renderPile();
   return { moved, back };
 }
-const cardName = (id) => { const c = state.library.find((x) => x.id === id); return c ? c.name : id; };
+// Rebuilds the profile and everything that reads it: the pile, the profile panel and the card in play.
+function refreshProfile() {
+  rebuildProfile();
+  syncPile();
+  renderProfile();
+  refreshInPlay();
+}
+const cardName = (id) => { const c = state.byId.get(id); return c ? c.name : id; };
 const listNames = (ids) => ids.map(cardName).join(", ");
 
 /* ---------- Pile ---------- */
@@ -1511,7 +2091,7 @@ function renderPile() {
   pile.disabled = inPlay || n === 0;
   pile.setAttribute("aria-label", inPlay ? "Finish the card in play before drawing" : n ? `Draw a card, ${n} left` : "Pile empty");
   const aside = state.aside.length;
-  const asideNote = aside ? ` · <span title="${esc("Set aside while a card of their family is in your deck: " + listNames(state.aside))}">${aside} set aside</span>` : "";
+  const asideNote = aside ? ` · <button type="button" class="linkish" id="asideBtn" title="${esc("Set aside: " + listNames(state.aside))}">${aside} set aside</button>` : "";
   $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`) + asideNote;
 }
 
@@ -1539,6 +2119,7 @@ function renderCurrent(animateFrom) {
   if (!c) {
     slot.innerHTML = `<div class="placeholder"><div><b>No card in play</b>Tap the pile to draw a constraint.</div></div>`;
     $("cardActions").hidden = true;
+    $("cardNotes").hidden = true;
     return;
   }
   slot.innerHTML = cardHTML(c.card);
@@ -1565,6 +2146,10 @@ function updateRule() {
   $("keepBtn").disabled = !complete;
   const card = $("cardSlot").querySelector(".card");
   if (card) card.classList.toggle("complete", complete);
+  // Values the deck decided, with the reason.
+  const notes = c.card.slots.map((s, i) => c.values[i] && c.values[i].forced ? `<li>Set to <b>${esc(c.values[i].label)}</b> without a roll. ${esc(c.values[i].forced)}</li>` : "").join("");
+  $("cardNotes").innerHTML = notes;
+  $("cardNotes").hidden = !notes;
 }
 
 function draw() {
@@ -1583,14 +2168,34 @@ function draw() {
 }
 function advance(first) {
   const c = state.current;
+  c.allowed = c.allowed || {};
   let next = -1;
   for (let i = 0; i < c.card.slots.length; i++) {
     if (c.values[i]) continue;
     const slot = c.card.slots[i];
     if (condState(slot.cond, c.values) === "unmet") { c.values[i] = { skipped: true }; continue; }
-    if (slot.kind === "pool" && !c.hands[i]) {
-      c.hands[i] = dealHand(slot, takenPhonemes(c));
-      if (!c.hands[i].length) { c.values[i] = { n: 0, of: 0, sym: null, label: "no phoneme (every one in this pool is already in your deck)" }; continue; }
+    if (slot.kind === "pool") {
+      if (!c.hands[i]) {
+        // Only phonemes that fit the deck are dealt, and none it already has.
+        const fit = slotChoices(c.card, c.values, i, state.profile).ok;
+        c.fit = { ...(c.fit || {}), [i]: fit.length };
+        c.hands[i] = shuffle(fit).slice(0, HAND_MAX).map((x) => x.sym);
+      }
+      if (!c.hands[i].length) { c.values[i] = { n: 0, of: 0, sym: null, label: "no phoneme (none left in this pool fits your deck)" }; continue; }
+    } else {
+      const st = slotChoices(c.card, c.values, i, state.profile);
+      if (!st.ok.length) {
+        // Can't happen for a card drawn from the filtered pile, but a card restored from an older session might.
+        c.allowed[i] = null;
+        c.stuck = st.crossed.length ? st.crossed[0].reason : null;
+      } else c.allowed[i] = st;
+      // One value left: it goes on the card without a roll, and the card says why.
+      if (st.ok.length === 1 && st.crossed.length) {
+        const only = st.ok[0], other = st.crossed[0];
+        const why = slot.kind === "choice" ? `“${other.label}” would clash with your deck. ${other.reason}` : `It’s the only ${slot.kind === "number" ? "number" : "option"} that fits your deck. ${other.reason}`;
+        c.values[i] = { n: only.n, label: only.label, forced: why };
+        continue;
+      }
     }
     next = i; break;
   }
@@ -1600,12 +2205,32 @@ function advance(first) {
   if (next === -1) { setTrayDone(); return; }
   setTrayForSlot(liveSlot(c, next), first);
 }
-// The slot as the tray rolls it: a phoneme pool becomes a pick from the hand dealt for it.
+// The slot as the tray rolls it. A phoneme pool becomes a pick from the hand dealt for it, and a slot with
+// crossed-out values rolls a smaller die over the values still open (map and faces say which ones).
 function liveSlot(c, i) {
   const slot = c.card.slots[i];
-  if (slot.kind !== "pool") return slot;
-  const hand = c.hands[i] || [];
-  return { ...slot, kind: "pick", pool: true, sides: Math.max(1, hand.length), options: hand };
+  if (slot.kind === "pool") {
+    const hand = c.hands[i] || [];
+    return { ...slot, kind: "pick", pool: true, sides: Math.max(1, hand.length), options: hand, fit: c.fit && c.fit[i] };
+  }
+  const st = c.allowed && c.allowed[i];
+  if (!st || !st.crossed.length) return slot;
+  const live = { ...slot, origSides: slot.sides, crossed: st.crossed, open: st.ok, sides: st.ok.length };
+  if (slot.kind === "number") live.faces = st.ok.map((x) => x.n);
+  else { live.options = st.ok.map((x) => x.label); live.map = st.ok.map((x) => x.n); live.allOptions = slot.options; }
+  return live;
+}
+// After the deck changes, re-check the blank waiting for a roll. If its open values changed, set it up again.
+function refreshInPlay() {
+  const c = state.current;
+  if (!c || c.idx < 0 || state.busy || !state.profile || state.dice.some((d) => d.rolling)) return;
+  const slot = c.card.slots[c.idx];
+  if (slot.kind === "pool") return; // the hand already dealt stays
+  const st = slotChoices(c.card, c.values, c.idx, state.profile);
+  const sig = (x) => (x ? x.ok.map((o) => o.n).join(",") : "all");
+  if (sig(st.crossed.length ? st : null) === sig(c.allowed[c.idx] && c.allowed[c.idx].crossed.length ? c.allowed[c.idx] : null)) return;
+  delete c.allowed[c.idx];
+  advance(false);
 }
 // Phonemes already mandated by kept cards, or earlier on this card, aren't dealt again.
 function takenPhonemes(c) {
@@ -1629,6 +2254,7 @@ function setTrayIdle() {
   });
   layoutIdle();
   $("strip").innerHTML = "";
+  $("why").innerHTML = "";
   setPrompt(state.library.length ? "Draw a card from the pile to begin." : "Add some cards to begin.",
     state.library.length ? "Each card names the dice it needs. You roll them here." : "Open Edit cards and paste rows from your roller.");
 }
@@ -1642,13 +2268,37 @@ function layoutIdle() {
     d.place(x, y); d.clamp();
   });
 }
+// "1 to 6", "2, 4 to 9": a sorted list of numbers as ranges.
+function rangesText(nums) {
+  const out = [];
+  for (let i = 0; i < nums.length; i++) {
+    let j = i;
+    while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+    out.push(j > i + 1 ? `${nums[i]} to ${nums[j]}` : j === i + 1 ? `${nums[i]}, ${nums[j]}` : String(nums[i]));
+    i = j;
+  }
+  return out.join(", ");
+}
+// Crossed-out values with their reasons, numbers grouped into runs that share a reason.
+function whyHTML(slot) {
+  if (!slot.crossed || !slot.crossed.length) return "";
+  const rows = [];
+  for (const x of slot.crossed) {
+    const last = rows[rows.length - 1];
+    if (slot.kind === "number" && last && last.reason === x.reason && last.nums[last.nums.length - 1] === x.n - 1) last.nums.push(x.n);
+    else rows.push({ reason: x.reason, nums: [x.n], label: x.label });
+  }
+  const shown = rows.slice(0, 5).map((r) => `<li><s>${esc(slot.kind === "number" ? rangesText(r.nums) : r.label)}</s> ${esc(r.reason)}</li>`);
+  if (rows.length > 5) shown.push(`<li>and ${rows.length - 5} more.</li>`);
+  return `<p class="why-head">Crossed out because they clash with your deck:</p><ul>${shown.join("")}</ul>`;
+}
 function setTrayForSlot(slot, first) {
   clearDice();
   const tray = $("tray");
   const name = dieBase(slot);
   $("trayMark").textContent = name;
   $("trayHint").textContent = "tap the die, or drag and flick it";
-  const d = new Die(tray, { sides: slot.sides, kind: slot.kind, options: slot.options, onResult: onSlotResult });
+  const d = new Die(tray, { sides: slot.sides, kind: slot.kind, options: slot.options, faces: slot.faces, onResult: onSlotResult });
   state.dice.push(d);
   const S = d.size();
   d.place(Math.max(0, tray.clientWidth * 0.28 - S / 2), Math.max(0, (tray.clientHeight - S) / 2 - 8));
@@ -1657,31 +2307,54 @@ function setTrayForSlot(slot, first) {
   // Prompt + option strip
   const c = state.current;
   const n = c.card.slots.length, pos = c.idx + 1;
+  const cut = slot.crossed ? slot.crossed.length : 0;
   let lead, sub;
   if (slot.kind === "number") {
     lead = `Roll the ${name}.`;
     const ops = [];
     if (slot.mult > 1) ops.push(slot.mult === 2 ? "double it" : `multiply it by ${slot.mult}`);
     if (slot.offset) ops.push(slot.offset > 0 ? `add ${slot.offset}` : `subtract ${-slot.offset}`);
-    sub = (ops.length ? upperLead(ops.join(", then ")) + ". The total goes on the card." : "The number goes straight onto the card.") + ` Blank ${pos} of ${n}.`;
+    const shrink = cut ? `${cut} of the d${slot.origSides}’s numbers clash with your deck, so it rolls as a d${slot.sides} over ${rangesText(slot.faces)}. ` : "";
+    sub = shrink + (ops.length ? upperLead(ops.join(", then ")) + ". The total goes on the card." : "The number goes straight onto the card.") + ` Blank ${pos} of ${n}.`;
   }
   else if (slot.kind === "choice") { lead = `Flip the coin: ${slot.options.join(" or ")}.`; sub = `Blank ${pos} of ${n}.`; }
   else if (slot.pool) {
-    const len = slot.options.length;
+    const len = slot.options.length, fit = slot.fit != null ? slot.fit : slot.poolSize;
     lead = `Roll the ${name} to pick a phoneme.`;
     const pool = slot.terms.join(" ");
-    sub = `${len === slot.poolSize ? `All ${len}` : `${len} of the ${slot.poolSize}`} ${pool} phonemes are dealt below. Hover one for its name. Blank ${pos} of ${n}.`;
+    const of = fit < slot.poolSize ? `${fit === len ? `All ${len}` : `${len} of the ${fit}`} ${pool} phonemes that fit your deck (out of ${slot.poolSize})` : `${len === slot.poolSize ? `All ${len}` : `${len} of the ${slot.poolSize}`} ${pool} phonemes`;
+    sub = `${of} are dealt below. Hover one for its name. Blank ${pos} of ${n}.`;
   }
   else {
     const len = slot.options.length;
     lead = `Roll the ${name} to pick from ${len} options.`;
-    sub = `Whichever number lands, that option goes on the card.${slot.sides > len ? ` Anything above ${len} is rolled again.` : ""} Blank ${pos} of ${n}.`;
+    sub = cut ? `${cut} ${cut === 1 ? "option clashes" : "options clash"} with your deck and ${cut === 1 ? "is" : "are"} crossed out, so the d${slot.origSides} rolls as a d${slot.sides}. Blank ${pos} of ${n}.`
+      : `Whichever number lands, that option goes on the card.${slot.sides > len ? ` Anything above ${len} is rolled again.` : ""} Blank ${pos} of ${n}.`;
   }
+  if (c.stuck && !c.allowed[c.idx]) sub = `Every value here clashes with your deck, so nothing is crossed out. ${c.stuck} ` + sub;
   setPrompt(lead, sub);
-  $("strip").innerHTML = !slot.options ? "" : slot.pool
-    ? slot.options.map((sym, i) => { const p = phonemeInfo(sym); const t = p ? `${p.name}, ${fmtPct(p.pct)} of languages` : sym;
-        return `<span class="opt ipa" data-n="${i + 1}" title="${esc(t)}" aria-label="${i + 1}: ${esc(sym)}, ${esc(t)}"><b>${i + 1}</b>${esc(sym)}</span>`; }).join("")
-    : slot.options.map((o, i) => `<span class="opt" data-n="${i + 1}"><b>${i + 1}</b>${esc(o)}</span>`).join("");
+  let strip = "";
+  if (slot.pool) {
+    strip = slot.options.map((sym, i) => { const p = phonemeInfo(sym); const t = p ? `${p.name}, ${fmtPct(p.pct)} of languages` : sym;
+      return `<span class="opt ipa" data-n="${i + 1}" title="${esc(t)}" aria-label="${i + 1}: ${esc(sym)}, ${esc(t)}"><b>${i + 1}</b>${esc(sym)}</span>`; }).join("");
+  } else if (slot.map) {
+    // Every option, with the open ones renumbered for the smaller die and the rest struck through.
+    const reasons = new Map(slot.crossed.map((x) => [x.n, x.reason]));
+    strip = slot.allOptions.slice(0, slot.origSides).map((o, k) => {
+      const at = slot.map.indexOf(k + 1);
+      return at >= 0 ? `<span class="opt" data-n="${at + 1}"><b>${at + 1}</b>${esc(o)}</span>`
+        : `<span class="opt off" title="${esc(reasons.get(k + 1) || "")}"><b aria-hidden="true">×</b><s>${esc(o)}</s></span>`;
+    }).join("");
+  } else if (slot.options) {
+    strip = slot.options.map((o, i) => `<span class="opt" data-n="${i + 1}"><b>${i + 1}</b>${esc(o)}</span>`).join("");
+  } else if (slot.faces && slot.origSides <= 40) {
+    strip = Array.from({ length: slot.origSides }, (_, k) => {
+      const at = slot.faces.indexOf(k + 1);
+      return at >= 0 ? `<span class="opt num" data-n="${at + 1}">${k + 1}</span>` : `<span class="opt num off"><s>${k + 1}</s></span>`;
+    }).join("");
+  }
+  $("strip").innerHTML = strip;
+  $("why").innerHTML = whyHTML(slot);
 }
 function setTrayDone() {
   const noDice = state.current && !state.current.card.slots.length;
@@ -1691,6 +2364,7 @@ function setTrayDone() {
   $("trayHint").textContent = noDice ? "nothing to roll" : "all dice rolled";
   setPrompt(noDice ? "This card has nothing to roll." : "Every blank is filled.", "Keep this card in your deck, or discard it to the bottom of the pile.");
   $("strip").innerHTML = "";
+  $("why").innerHTML = "";
   $("keepBtn").focus({ preventScroll: true });
 }
 function setPrompt(lead, sub) { $("prompt").innerHTML = `<span class="lead">${esc(lead)}</span><span class="sub">${esc(sub)}</span>`; }
@@ -1705,9 +2379,11 @@ function onSlotResult(n, die) {
   }
   die.locked = true;
   const sym = slot.pool ? slot.options[n - 1] : null;
-  const label = sym ? phonemeLabel(sym) : slot.options ? slot.options[n - 1] : String(n * (slot.mult || 1) + (slot.offset || 0));
+  // On a smaller die, face n stands for an open option (map) or an open number (faces).
+  const raw = slot.faces ? slot.faces[n - 1] : n;
+  const label = sym ? phonemeLabel(sym) : slot.options ? slot.options[n - 1] : String(raw * (slot.mult || 1) + (slot.offset || 0));
   let from = die.el;
-  if (slot.options) {
+  if (slot.options || slot.faces) {
     const cell = $("strip").querySelector(`.opt[data-n="${n}"]`);
     if (cell) { cell.classList.add("hit"); from = cell; }
   }
@@ -1716,14 +2392,16 @@ function onSlotResult(n, die) {
   else if (slot.kind === "pick") said = `Rolled ${n}: ${label}.`;
   else if (isModified(slot)) {
     const ops = (slot.mult > 1 ? ` × ${slot.mult}` : "") + (slot.offset ? ` ${slot.offset < 0 ? "−" : "+"} ${Math.abs(slot.offset)}` : "");
-    said = `Rolled ${n}${ops} = ${label}.`;
-  } else said = `Rolled ${n}.`;
+    said = `Rolled ${raw}${ops} = ${label}.`;
+  } else said = `Rolled ${raw}.`;
   setPrompt(said, "Filling it in…");
   state.busy = true;
   setTimeout(() => {
     const target = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
     fly(from, target, sym ? `/${sym}/` : label, () => {
-      c.values[i] = sym ? { n, label, sym, of: slot.options.length } : { n, label };
+      c.values[i] = sym ? { n, label, sym, of: slot.options.length }
+        : slot.map ? { n: slot.map[n - 1], label, roll: n, of: slot.sides }
+        : slot.faces ? { n: raw, label, roll: n, of: slot.sides } : { n, label };
       state.busy = false;
       updateRule();
       const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
@@ -1760,6 +2438,7 @@ function keep() {
     html: ruleHTMLDone(c.card, c.values),
     rolls: rollSummary(c.card, c.values),
     rolled: rolledFacts(c.card, c.values),
+    ...(Object.keys(c.card.tags).length ? { tags: c.card.tags } : {}),
     createdAt: Date.now(),
   };
   const syms = c.values.filter((v) => v && v.sym).map((v) => v.sym);
@@ -1769,10 +2448,11 @@ function keep() {
   const finish = () => {
     state.busy = false; state.current = null; saveInPlay();
     renderCurrent(); renderPile(); setTrayIdle();
-    const before = state.aside.length;
+    const before = new Set(state.aside);
     addEntry(entry);
-    const set = state.aside.length - before;
-    toast(set > 0 ? `Kept “${entry.name}”. ${set} other ${set === 1 ? "card" : "cards"} from its family ${set === 1 ? "is" : "are"} set aside.` : `Kept “${entry.name}”.`);
+    const set = state.aside.filter((id) => !before.has(id));
+    const names = set.slice(0, 2).map((id) => `“${cardName(id)}”`).join(" and ") + (set.length > 2 ? ` and ${set.length - 2} more` : "");
+    toast(set.length ? `Kept “${entry.name}”. Set aside ${names}, which no longer ${set.length === 1 ? "fits" : "fit"}.` : `Kept “${entry.name}”.`);
   };
   if (RM || !el) return finish();
   const grid = $("deckGrid"), a = el.getBoundingClientRect(), b = grid.getBoundingClientRect();
@@ -1833,7 +2513,7 @@ function renderDeck() {
   }
   freshId = null;
   $("plainText").value = deckText(deck);
-  syncFamilies();
+  refreshProfile();
 }
 function sanitizeEntryHTML(e) {
   // Stored html only ever contains escaped text and <em>; rebuild from that shape to be safe.
@@ -1885,7 +2565,7 @@ async function clearDeck() {
 function setStatus(mode) {
   const el = $("status");
   el.dataset.mode = mode;
-  if (mode !== "loading" && !deckReady) { deckReady = true; if (mode === "local") syncFamilies(); }
+  if (mode !== "loading" && !deckReady) { deckReady = true; if (mode === "local") refreshProfile(); }
   el.textContent = mode === "account" ? "Saved to your account" : mode === "loading" ? "Opening your deck…" : "Saved in this browser";
 }
 async function connectStore() {
@@ -1944,7 +2624,111 @@ async function saveSource(src) {
   }
 }
 
+/* ---------- Profile panel ---------- */
+const PROFILE_AREAS = [
+  ["size", "Inventory size"], ["place", "Places"], ["manner", "Manners"], ["special", "Special series"],
+  ["vowel", "Vowel space"], ["vfeature", "Vowel features"], ["prosody", "Prosody"], ["syllable", "Syllables"],
+  ["process", "Processes"], ["phonemes", "Mandated phonemes"], ["budget", "Phoneme budget"], ["other", "Other"],
+];
+const KEY_GROUP = {
+  place: "place", "place category": "place", manner: "manner", voicing: "manner", special: "special",
+  height: "vowel", backness: "vowel", rounding: "vowel", vfeature: "vfeature",
+  quantity: "prosody", "quantity sensitivity": "prosody", "pitch accent": "prosody", "foot type": "prosody", "primary stress": "prosody",
+  "foot direction": "prosody", extrametricality: "prosody", "degenerate feet": "prosody",
+  "initial vowels": "syllable", final: "syllable",
+  "consonant rules": "process", "vowel rules": "process", "consonant harmony": "process", "vowel harmony": "process",
+};
+function keyGroup(key) { const [area, term] = splitKey(key); return KEY_GROUP[area || term] || "other"; }
+const srcList = (srcs) => [...new Set(srcs.filter(Boolean).map((x) => x.name + (x.sym ? ` (/${x.sym}/)` : "")))].join(", ");
+function totalText(t) {
+  if (t.min === t.max) return String(t.min);
+  if (t.max < Infinity && t.min > 0) return `${t.min} to ${t.max}`;
+  return t.max < Infinity ? `at most ${t.max}` : `at least ${t.min}`;
+}
+// One feature as a chip: crossed out when ruled out, "3+" for at least 3, "≤2" for at most 2.
+function chipFor(e) {
+  const name = e.disp || keyShort(e.key), flags = Object.keys(e.flags);
+  let cls, text;
+  if (e.max === 0) { cls = "no"; text = name; }
+  else if (e.need >= 1) { cls = "in"; text = name + (e.need > 1 ? (e.max < Infinity ? ` ${e.need}–${e.max}` : ` ${e.need}+`) : e.max < Infinity ? ` ≤${e.max}` : ""); }
+  else if (e.max < Infinity) { cls = "cap"; text = `${name} ≤${e.max}`; }
+  else if (flags.length) { cls = "note"; text = name; }
+  else return "";
+  if (flags.length) text += " · " + flags.join(", ");
+  const srcs = e.srcs.length ? e.srcs : [e.needSrc];
+  const title = (cls === "no" ? "Ruled out by " : cls === "cap" ? "Capped by " : "From ") + srcList(srcs) + (e.implied ? `, through ${keyLabel(e.implied)}` : "");
+  return `<span class="pchip ${cls}" title="${esc(title)}">${cls === "no" ? `<s>${esc(text)}</s>` : esc(text)}</span>`;
+}
+const prow = (label, value, note, title) => `<div class="prow"${title ? ` title="${esc(title)}"` : ""}><span>${esc(label)}${note ? ` <i>${esc(note)}</i>` : ""}</span><b>${esc(value)}</b></div>`;
+function renderProfile() {
+  const body = $("profileBody");
+  if (!body) return;
+  const base = state.profile, out = [];
+  if (base && base.clashes.length) {
+    const n = base.clashes.length;
+    out.push(`<div class="pclash"><b>${n === 1 ? "A clash" : n + " clashes"} in your deck</b><ul>${base.clashes.map((c) => `<li>${esc(c.text)}</li>`).join("")}</ul>
+      <p>Cards kept before these checks, or under an older card list, can disagree. Remove one of the cards named to clear it.</p></div>`);
+  }
+  const groups = Object.fromEntries(PROFILE_AREAS.map(([id]) => [id, { chips: [], rows: [] }]));
+  let any = false;
+  if (base) {
+    const { keys, totals, mandated } = base.prof;
+    const req = requirements(base.prof);
+    for (const e of keys.values()) { const chip = chipFor(e); if (chip) { groups[keyGroup(e.key)].chips.push(chip); any = true; } }
+    for (const u of ["consonants", "vowels"]) {
+      const t = totals.get(u), r = req[u].n;
+      if (!t && !r) continue;
+      groups.size.rows.push(prow(u, t ? totalText(t) : `at least ${r}`, t && r ? `${r} spoken for` : "", t ? "From " + srcList(t.srcs) : "Needed by the cards and phonemes in your deck"));
+    }
+    for (const t of totals.values()) {
+      if (t.name === "consonants" || t.name === "vowels") continue;
+      const info = COUNTS[t.name] || {};
+      if (info.band) continue;
+      groups[info.area || "other"].rows.push(prow(countLabel(t.name), totalText(t), t.implied ? `through ${keyLabel(t.implied)}` : "", "From " + srcList(t.srcs.length ? t.srcs : [t.minSrc])));
+    }
+    for (const m of mandated) {
+      const p = phonemeInfo(m.mandate) || describePhoneme(m.mandate);
+      const title = `${p ? p.name : m.mandate}${p && p.pct != null ? `, ${p.band}, ${fmtPct(p.pct)} of languages` : ""}. From ${m.src.name}.`;
+      groups.phonemes.chips.push(`<span class="pchip ipa" title="${esc(title)}">/${esc(m.mandate)}/</span>`);
+    }
+    for (const b of ["common", "uncommon", "rare"]) {
+      const x = req.bands[b];
+      if (!x.need) continue;
+      groups.budget.rows.push(prow(`${b} phonemes`, String(x.need), x.mandated ? `${x.mandated} mandated` : ""));
+    }
+    if (req.phonemes.n) {
+      const room = (totals.get("consonants") ? totals.get("consonants").max : Infinity) + (totals.get("vowels") ? totals.get("vowels").max : Infinity);
+      groups.budget.rows.push(prow("phonemes spoken for", room < Infinity ? `${req.phonemes.n} of ${room}` : String(req.phonemes.n)));
+    }
+    any = any || totals.size > 0 || mandated.length > 0;
+  }
+  for (const [id, title] of PROFILE_AREAS) {
+    const g = groups[id];
+    if (!g.chips.length && !g.rows.length) continue;
+    out.push(`<section class="pa"><h4>${esc(title)}</h4>${g.rows.join("")}${g.chips.length ? `<div class="pchips">${g.chips.join("")}</div>` : ""}</section>`);
+  }
+  if (!any) out.push(`<p class="pempty">Nothing yet. As you keep cards, what they commit the language to shows here.</p>`);
+  else out.push(`<p class="plegend">3+ means at least 3, ≤2 at most 2. Struck through means ruled out. Hover a chip for the cards behind it.</p>`);
+  if (base && base.untracked) out.push(`<p class="pnote">${base.untracked === 1 ? "1 card" : base.untracked + " cards"} kept before rolls were recorded ${base.untracked === 1 ? "isn’t" : "aren’t"} in the profile.</p>`);
+  if (state.aside.length) {
+    const items = state.aside.map((id) => { const r = state.asideWhy.get(id); return `<li><b>${esc(cardName(id))}</b>${r ? `<span>${esc(r.text)}</span>` : ""}</li>`; }).join("");
+    out.push(`<section class="pa aside-list" id="asideList"><h4>Set aside (${state.aside.length})</h4><p class="pnote">These wait outside the pile, and go back in when the reason goes away.</p><ul>${items}</ul></section>`);
+  }
+  body.innerHTML = out.join("");
+}
+
 /* ---------- Editor ---------- */
+// What a card writes to the profile, in words, for the editor preview.
+function writesHelp(c) {
+  const t = c.tags;
+  if (t.counts) return `${t.effect === "at-most" ? "caps" : "sets"} ${countLabel(t.counts)}${COUNTS[t.counts] ? "" : " (unknown total)"}.`;
+  if (!t.effect) return t.needs ? `waits for ${t.needs}.` : "";
+  const lists = [...new Set(c.slots.filter((s) => s.list).map((s) => "@" + s.list))];
+  const what = lists.length ? lists.join(", ") : t.feature ? `“${t.feature}”` : "nothing yet";
+  const polar = c.slots.some((s) => s.kind === "choice" && s.options.every(isPolar));
+  const verb = { include: polar ? "includes, or rules out on “don't”," : "includes", exclude: "rules out", neutralize: "neutralizes", "at-most": "caps", symmetric: "makes symmetrical", count: "sets the count of" }[t.effect] || t.effect;
+  return `${verb} ${what}${t.needs ? `, once the deck has ${t.needs}` : ""}.`;
+}
 function renderPreview() {
   const { cards, problems, lists } = parseLibrary($("src").value);
   const defs = Object.values(lists);
@@ -1968,8 +2752,10 @@ function renderPreview() {
       return `<span class="tag${bad ? " bad" : ""}" title="${esc(bad || TAG_HELP[k] || "")}">${esc(k)}=${esc(v)}</span>`;
     }).join("");
     const dice = c.slots.map((sl) => dieName(sl) + (sl.list ? " @" + sl.list : "")).join(", ") || "no dice";
+    const writes = writesHelp(c);
     out.push(`<div class="pv"><b style="color:${c.suit}">${esc(c.rank)}</b> · <b>${esc(c.name)}</b>
       <div class="meta">${esc(c.category)} · ${esc(dice)}</div>
+      ${writes ? `<div class="meta">Profile: ${esc(writes)}</div>` : ""}
       <div>${ruleHTML(c, [], -1).replace(/<span class="slot[^"]*" data-i="\d+">/g, '<span class="slot">')}</div>
       ${tags ? `<div class="tags">${tags}</div>` : ""}
       ${c.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>`);
@@ -1986,6 +2772,13 @@ function toast(msg) {
 
 /* ---------- Wiring ---------- */
 $("pile").addEventListener("click", draw);
+$("pileCount").addEventListener("click", (e) => {
+  if (!e.target.closest("#asideBtn")) return;
+  const list = $("asideList");
+  if (!list) return;
+  list.scrollIntoView({ behavior: RM ? "auto" : "smooth", block: "nearest" });
+  list.classList.remove("flash"); void list.offsetWidth; list.classList.add("flash");
+});
 $("shuffleBtn").addEventListener("click", () => reshufflePile(true));
 $("keepBtn").addEventListener("click", keep);
 $("discardBtn").addEventListener("click", discard);
