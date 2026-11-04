@@ -7,13 +7,14 @@ As of 2026-11-04. Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5P
 - **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards (now 60 after the Phase 1 split), the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
 - **Phase 4, started early (profile-free part):** 12 phoneme mandate cards, the `[ipa:…]` pool syntax (feature terms joined with `+`), the bundled PHOIBLE 2.0 table (871 segments), a dealt hand of up to 20, and the phoneme name on the card. Kept cards store their phonemes in `entry.phonemes` for the profile to read later. Not done yet: filtering pools against the profile and the feature write-back, which wait on Phase 3.
 - **Phase 1, done:** the fixes table is applied to the card list (except the Include special feature tags, which need Phase 2's tags syntax). Rows take an optional last column of `key=value` tags; only `family=` is read so far. The 3 consonant count cards and the 3 vowel count cards are families: keeping one sets the others aside (a count shows under the pile), and they return when it leaves the deck. Saved piles, decks and cards in play from the old list carry over.
+- **Ideas only:** curse and power-up cards (Phase 7), added 2026-11-04. Nothing decided yet, names included.
 - **Not started:** everything else below. **Next step: Phase 2** (syntax: named lists, the rest of the tags, and the editor preview showing tags).
 
 ## Summary
 
 The roller gets a **language profile**: a running record of what your kept cards have committed the language to. The profile does three jobs. It removes impossible cards from the pile, it crosses out options that would contradict earlier cards, and it makes phoneme cards possible.
 
-Around that core, the plan adds six new card types, fills coverage gaps in the current 57 cards, and fixes cards whose wording or dice don't work. Work is split into six phases, and the first one needs no profile at all.
+Around that core, the plan adds six new card types, fills coverage gaps in the current 57 cards, and fixes cards whose wording or dice don't work. Work is split into seven phases, and the first one needs no profile at all.
 
 ## Decisions made
 
@@ -96,6 +97,25 @@ Six types join the current constraint cards and the phoneme cards above.
 | Rule interaction | Asks for a specific relationship between rules | "Include a [feeding/bleeding/counterfeeding/counterbleeding] interaction"; "Include a chain shift" | No |
 | Modifier | Changes other cards instead of the language | "Re-roll one die on a kept card"; "Flip a do/don't"; "Your next pick is your choice" | Yes, to re-check after the change |
 
+## Curses and power-ups (ideas)
+
+These are ideas for a game layer, to build once the profile and clash checks are solid. Nothing here is decided yet, including the names. Both kinds are shuffled into the pile and drawn like any other card, but they change how you play rather than the language.
+
+**Curses** last for the next [d12] draws, with a counter on the table. While a curse is active, it changes the values or wording of the cards you draw.
+
+**Power-ups** are kept as tokens and spent when you choose. With power-ups in play, discards stop being free: you need a token to discard.
+
+| Idea | Kind | Effect | Lasts |
+| --- | --- | --- | --- |
+| Exact count | Curse | Ceiling cards become exact counts: "Allow at most 3 velar consonants" becomes "Include exactly 3 velar consonants" | [d12] draws |
+| Multiplier | Curse | Number rolls get a random multiplier, such as ×[d3] | [d12] draws |
+| Long odds | Curse | Rarer outcomes come up more often, such as phoneme hands weighted toward the rare band | [d12] draws |
+| Discard | Power-up | One discard | Until spent |
+| Re-roll | Power-up | Re-roll one die on the card in play | Until spent |
+| Cleanse | Power-up | Ends one active curse | Until spent |
+
+More ideas of both kinds are welcome. Curses that rewrite wording need Phase 2's `effect=` tags to find the cards they apply to, such as ceiling cards. Cursed results still pass the clash checks, so an exact count can't go over the inventory budget. The Re-roll power-up overlaps with Phase 6's modifier cards, so the two should be designed together.
+
 ## Gaps in the current cards
 
 The 57 cards cover places, manners, counts and metrical stress well. These areas have no cards yet:
@@ -169,6 +189,7 @@ Each phase ships on its own and leaves the roller usable.
 4. **Phoneme cards.** Bundle the trimmed PHOIBLE table, add the phoneme pools, the dealt hand of candidates and the feature write-back.
 5. **New constraint types.** Add prerequisite, gap, template and rule-interaction cards, plus new cards for the coverage gaps.
 6. **Modifier cards.** Add cards that act on the deck, with a re-check of the profile after each change.
+7. **Game layer (ideas).** Add curse and power-up cards, the curse counter and power-up tokens. This comes after the foundation in phases 1 to 6.
 
 ## Open questions
 
@@ -176,4 +197,8 @@ Each phase ships on its own and leaves the roller usable.
 - [ ] For phoneme pools, is a dealt hand of 20 right, or would a two-stage roll (class first, then phoneme) feel better?
 - [ ] Should a challenge set have a fixed size, for example 12 cards with a target mix per category?
 - [x] Which option should replace the sixth face of Final constraint, or should it become a d5? Answered: nasals is the sixth option.
+- [ ] Curses and power-ups: what should they be called?
+- [ ] Can curses stack, and does a kept card keep its cursed wording for good?
+- [ ] Should the game layer be a setting, so the plain roller (free discards, no curses) stays available?
+- [ ] Is there a limit on how many power-up tokens you can hold?
 - [x] Should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split? Answered: all seven, on a d7.
