@@ -18,9 +18,10 @@ Keyboard: `D` draw, `R` roll, `K` keep.
 
 | Path | What it is |
 | --- | --- |
-| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 57 built-in cards in `DEFAULT_SOURCE`. It is the source that gets published to the artifact. |
+| `phonology-challenge.html` | The whole app: markup, CSS and JS in one file, with the 69 built-in cards in `DEFAULT_SOURCE` and the trimmed PHOIBLE phoneme table. It is the source that gets published to the artifact. |
 | `docs/PLAN.md` | The card expansion plan: language profile, clash checks, phoneme cards, new card types, fixes, build phases. |
 | `scripts/check-cards.js` | Runs the card parser in Node over every built-in card with random rolls and prints the sentences and warnings. |
+| `scripts/build-phonemes.js` | Rebuilds the phoneme table in the page from the PHOIBLE 2.0 CSV. |
 | `CLAUDE.md` | Working notes for Claude Code sessions on this repo. |
 
 ## Card format
@@ -36,12 +37,17 @@ Cards are rows pasted from a spreadsheet, separated by tabs (or `|`): category, 
 | `[do/don't]`, `[L/R]` | A list with no die. Two options flip a coin; more roll a die of that size. |
 | `(If do: …)` | Only applies when an earlier roll came up "do". |
 | `[10]` | A fixed number, nothing to roll (the editor warns about it). |
+| `[ipa:rare]`, `[ipa:front+rounded]` | Deal up to 20 phonemes that have every listed feature, then roll for one. Terms: `common`, `uncommon`, `rare`, `consonant`, `vowel`, any place, manner or vowel height, `front`/`central`/`back`, `rounded`/`unrounded`, `ejective`, `implosive`, `click`, `coarticulated`, `prenasalized`, `aspirated`, `nasalized`, `long` and more. Phonemes already in your deck aren't dealt again. |
 
 Edit the card list in the app with **Edit cards**. It shows a live preview and flags problems. Run the parser check from the repo root:
 
 ```bash
 node scripts/check-cards.js
 ```
+
+## Phoneme data
+
+Phoneme cards use [PHOIBLE 2.0](https://phoible.org) (Moran, Steven and McCloy, Daniel (eds.) 2019. PHOIBLE 2.0. Jena: Max Planck Institute for the Science of Human History. DOI: 10.5281/zenodo.2626687), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The page bundles a trimmed copy: single segments found in 3 or more languages, with the number of languages for each.
 
 ## Saving
 

@@ -265,6 +265,9 @@ button { font: inherit; color: inherit; }
 .opt b { font-family: var(--f-mono); font-weight: 500; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .opt.hit { background: var(--suit); color: var(--paper); border-color: transparent; transform: translateY(-2px) scale(1.06); }
 .opt.hit b { color: inherit; opacity: .75; }
+.opt.ipa { font-family: var(--f-text); font-size: 19px; line-height: 1.2; cursor: help; }
+.credit { font-size: 13px; color: var(--muted); margin: 0; }
+.credit a { color: inherit; }
 .keys { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 kbd { font-family: var(--f-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--paper); }
 
@@ -422,6 +425,7 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <summary>Plain text of this deck</summary>
       <textarea id="plainText" readonly aria-label="Deck as plain text"></textarea>
     </details>
+    <p class="credit">Phoneme cards use data from <a href="https://phoible.org" target="_blank" rel="noopener">PHOIBLE 2.0</a> (Moran and McCloy 2019), licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Trimmed to single sounds found in 3 or more languages, with frequencies counted per language.</p>
   </section>
 </div>
 
@@ -436,6 +440,7 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
       <dt>[d12] [a/b/…]</dt><dd>Roll a d12 and take that option from the list.</dd>
       <dt>[do/don't]</dt><dd>A list with no die. Two options flip a coin; more roll a die of that size.</dd>
       <dt>(If do: …)</dt><dd>Only applies when an earlier roll came up “do”. Otherwise it is skipped.</dd>
+      <dt>[ipa:rare]</dt><dd>Deal up to 20 phonemes from a pool and roll for one. Pools: common, uncommon, rare, consonant, vowel, any place, manner or vowel height, front, back, rounded, unrounded, ejective, implosive, click, coarticulated, prenasalized, aspirated, nasalized, long and more. Join them with +, like [ipa:rare+vowel].</dd>
     </dl>
     <div class="ed-cols">
       <textarea id="src" spellcheck="false" aria-label="Card rows"></textarea>
@@ -465,7 +470,7 @@ const VPOS = "[high/mid-high/mid/mid-close/close/front/central/back]";
 const MANNER = "[plosive/nasal/trill/tap/fricative/approximant/lateral/affricate]";
 const SPECIAL = "[co-articulated/semivowels/ejectives/palatalized/labialized/aspirated/sibilant fricative/prenasalization]";
 const VFEAT = "[nasality/phonation type/length/tone]";
-const DEFAULT_SOURCE = [
+const BASE_DEFAULT = [
   ["Consonant Inventory", "Consonant Count Large", "", "Include", "20+[d80] consonants"],
   ["Vowel Realizations", "Vowel Allophones", "", "Include", "[d8] vowels with allophones"],
   ["Inventory", "Phoneme neutralization", "", "Include", "[10] phonemes neutralized in certain environments"],
@@ -524,6 +529,317 @@ const DEFAULT_SOURCE = [
   ["Inventory", "Uncommon phonemes", "", "Include", "[d15] phonemes represented by 5% or less of the world's languages"],
   ["Stress", "Quantity sensitivity", "[do/don't]", "Include", "quantity sensitivity"],
 ].map((r) => r.join("\t")).join("\n");
+// Phoneme mandate cards. [ipa:…] deals a hand of phonemes from the PHOIBLE table below.
+const PHONEME_ROWS = [
+  ["Inventory", "Rare phoneme", "", "Include", "the rare phoneme [ipa:rare]"],
+  ["Inventory", "Uncommon phoneme", "", "Include", "the uncommon phoneme [ipa:uncommon]"],
+  ["Inventory", "Common phoneme", "", "Include", "the common phoneme [ipa:common]"],
+  ["Consonant Inventory", "Rare consonant", "", "Include", "the rare consonant [ipa:rare+consonant]"],
+  ["Vowel Inventory", "Rare vowel", "", "Include", "the rare vowel [ipa:rare+vowel]"],
+  ["Consonant Inventory", "Co-articulated stop", "", "Include", "the co-articulated stop [ipa:coarticulated]"],
+  ["Consonant Inventory", "Ejective", "", "Include", "the ejective [ipa:ejective]"],
+  ["Consonant Inventory", "Implosive", "", "Include", "the implosive [ipa:implosive]"],
+  ["Consonant Inventory", "Click", "", "Include", "the click [ipa:click]"],
+  ["Consonant Inventory", "Prenasalized consonant", "", "Include", "the prenasalized consonant [ipa:prenasalized]"],
+  ["Vowel Inventory", "Front rounded vowel", "", "Include", "the front rounded vowel [ipa:front+rounded]"],
+  ["Vowel Inventory", "Back unrounded vowel", "", "Include", "the back unrounded vowel [ipa:back+unrounded]"],
+].map((r) => r.join("\t")).join("\n");
+// BASE_DEFAULT is the 57-card list from before phoneme cards; saved copies of it upgrade automatically.
+const DEFAULT_SOURCE = BASE_DEFAULT + "\n" + PHONEME_ROWS;
+
+/* ---------- Phonemes ----------
+   PHOIBLE 2.0 (Moran & McCloy 2019, https://phoible.org), CC BY 4.0. Each entry is a segment and the
+   number of languages (distinct Glottocodes, out of PHOIBLE_LANGS) that have it. Trimmed by
+   scripts/build-phonemes.js: no tones, diphthongs or merged "a|b" segments, and only segments found
+   in 3 or more languages that describePhoneme() can read. Regenerate with that script; don't hand-edit. */
+const PHOIBLE_LANGS = 2185;
+const PHOIBLE_DATA = "m=2117 i=2083 k=2013 j=2000 u=1999 a=1988 p=1903 w=1887 n=1847 t=1661 l=1587 s=1538 e=1487 o=1451 ŋ=1428 b=1391 h=1266 ɡ=1261 r=1102 d=1099 ɲ=974 f=971 t̠ʃ=921 ɛ=864 ʔ=849 ɔ=825 ʃ=786 iː=781 aː=753 uː=729 z=683 d̠ʒ=643 v=618 ɾ=617 t̪=554 ə=537 eː=528 ts=524 oː=519 ĩ=425 n̪=425 x=414 ɨ=406 ã=402 kʰ=394 ũ=388 pʰ=382 ʈ=358 c=351 ɪ=345 ʒ=332 ȵ=330 d̪=328 ɣ=328 ʊ=323 ɳ=317 ɟ=311 kp=309 ɡb=305 tʰ=300 kʷ=299 ɭ=292 õ=285 ɛː=275 ẽ=271 ɔː=270 ȶ=269 ɻ=265 β=259 mb=258 dz=251 ɓ=246 nd=241 ŋɡ=240 o̞=230 e̞=226 ɗ=209 ɛ̃=203 l̪=193 ɔ̃=191 ȴ=186 ɑ=185 q=182 ɖ=172 kʼ=170 æ=170 t̠ʃʰ=161 χ=158 ɡʷ=156 ɯ=144 tsʰ=143 ʂ=143 ɽ=139 t̪ʰ=131 tʼ=130 y=128 t̠ʃʼ=126 ɬ=125 ɸ=123 ð=122 ç=120 pʼ=119 n̠d̠ʒ=114 ʌ=114 ŋʷ=113 cç=111 n̺=111 r̺=109 s̪=109 l̺=106 ɨ̃=104 ʁ=104 əː=99 ɟʝ=99 tɕ=97 tsʼ=96 ʎ=96 ɕ=91 ɹ̺=89 ɑː=87 ʈʰ=86 t̺=85 ũː=85 θ=84 mː=83 ɪ̃=83 ŋmɡb=82 ɪː=81 kʲ=80 nː=80 ĩː=79 ʊː=79 cʰ=77 ɨː=77 ʈʂ=77 ŋm=76 ɦ=76 kː=75 p͉=75 ʊ̃=75 k͉=74 lː=74 tʲ=73 ø=73 ãː=71 ə̃=71 ʐ=70 ä=69 k͈=68 p͈=68 õ̞=64 œ=64 dʑ=63 ħ=63 ɡʲ=63 ʉ=63 ʑ=63 æː=62 ȶ͈=62 l̥=61 lʲ=60 qʼ=60 xʷ=60 z̪=60 ȶ͉=60 ɐ=60 mʷ=59 sː=59 ɤ=59 hʷ=56 pʲ=56 ɰ=56 bː=54 mʲ=54 pː=54 qʰ=54 ŋɡʷ=54 ʋ=54 ʝ=54 kʷʼ=53 tː=53 m̥=52 õː=52 t͉=51 ɡː=50 dʲ=49 ndz=49 nʲ=49 t̪s̪=49 cçʰ=48 ẽ̞=48 pʷ=48 yː=48 ɡʱ=48 ɹ=48 n̥=47 rː=47 bʷ=46 n̠=46 ʕ=46 nz=45 tʷ=45 t͈=45 ɒ=45 ɛ̃ː=45 ɱv=45 bʲ=44 jː=44 tɕʰ=44 ʈ͉=44 χʷ=44 ŋk=43 ɮ=43 b̤=42 o̞ː=42 ɑ̃=42 ʈ͈=42 ẽː=41 nt=41 t̪͈=41 ɘ=41 ɯː=41 dː=40 sʲ=40 t̪͉=40 øː=40 ʃː=40 e̞ː=39 ɔ̃ː=39 ʄ=39 fʷ=38 fː=38 sʷ=38 ɢ=38 kʷʰ=37 mp=37 ɥ=37 ʈʂʰ=37 ɲɟ=36 ɺ=36 äː=35 a̟=35 t̠ʃː=35 æ̃=35 pf=34 qʷ=34 r̪=34 ŋː=34 t̪ʼ=33 ɖʐ=33 ɲː=33 nʷ=32 wː=32 d̪̤=31 ɯ̃=31 ɵ=31 fʲ=30 hʲ=30 ʍ=30 d̪z̪=29 lʷ=29 r̥=29 ɜ=29 ʃʷ=29 j̰=28 w̰=28 ɖ̤=28 β̞=28 rʲ=27 ⱱ=27 d̠ʒː=26 æ̞̃=26 ɟ̤ʝ=26 a̰=25 o̤=25 œː=25 ɫ=25 ɲ̟=25 e̤=24 i̤=24 jʷ=24 s̻=24 ṳ=24 zʲ=24 ŋ̥=24 m̰=23 tɬʼ=23 t̠ʃʷ=23 b̰=22 t̺͈=22 t̺͉=22 ɾʲ=22 ʌ̃=22 a̤=21 ḭ=21 rʷ=21 t̠=21 t̪ː=21 zː=21 ʁʷ=21 cʼ=20 dʷ=20 ḛ=20 m̩=20 ns=20 n̠t̠ʃ=20 ṵ=20 vʲ=20 ɣʷ=20 bv=19 m̤=19 qʷʼ=19 s̺=19 ɔ̤=19 kʲʼ=18 o̰=18 t̻=18 ɠ=18 ɱ=18 ɲʷ=18 ɲ̥=18 ʌː=18 ⁿb=18 bʰ=17 bʱ=17 d̠ʒʷ=17 j̥=17 l̤=17 sʰ=17 t̪s̪ʰ=17 zʷ=17 ɒː=17 ə̃ː=17 ʏ=17 ʔʲ=17 d̤=16 n̩=16 n̪d̪=16 n̰=16 tsʲ=16 w̃=16 ɛ̤=16 ɡʰ=16 ɤː=16 ʔʷ=16 ⁿd=16 d̪ː=15 d̻=15 n̻=15 u̞=15 ø̞=15 ɡ̤=15 ʉː=15 ʔː=15 ⁿɡ=15 hː=14 kǃ=14 kʲʰ=14 kʼː=14 mbʷ=14 qː=14 sʼ=14 t̠ʃʼː=14 xː=14 ɖʰ=14 l̠=13 l̰=13 pʲʰ=13 p̰=13 tɬ=13 z̻=13 ŋ̩=13 ɑ̃ː=13 ə̆=13 ɵː=13 ɻʷ=13 ⁿdz=13 kǀ=12 k̰=12 tsː=12 tʼː=12 t̪ʷ=12 t̰=12 xʲ=12 ɱf=12 ʀ=12 ʒʷ=12 ʒː=12 ˀm=12 dʱ=11 j̃=11 l̪ʷ=11 l̻=11 tʲʰ=11 t̠ʃʲ=11 z̺=11 ŋ̊=11 ɐː=11 ɤ̞=11 ɭʷ=11 ɾ̪=11 ʈː=11 ˀj=11 ˀn=11 ⁿdʑ=11 d̪ʰ=10 d̪ʱ=10 d̰=10 d̺=10 lˠ=10 mpʰ=10 n̪ʷ=10 sˤ=10 tɬʰ=10 vː=10 wʲ=10 ȴʷ=10 ȵʷ=10 ȶʷ=10 ɗː=10 ɟʰ=10 ɳʷ=10 ʃʲ=10 ʈʷ=10 ʰk=10 ʰt=10 a̟ː=9 b̥=9 c̟=9 d̠ʒ̤=9 iˑ=9 jˀ=9 kx=9 kʷː=9 nts=9 n̤=9 pʼː=9 qʷʰ=9 t̪s̪ʼ=9 vʷ=9 ỹ=9 ŋkʷ=9 ɓ̥=9 ɖː=9 ɟː=9 ɯ̽=9 ɲ̊=9 ɽ̤=9 ʈʂʼ=9 ʎ̟=9 ʰp=9 ˀw=9 βʲ=9 χː=9 ⁿɖʐ=9 ã̟=8 cː=8 dzː=8 eˑ=8 i̤ː=8 kǁ=8 kǃʰ=8 kʰː=8 lˤ=8 mʱ=8 ntʰ=8 oˑ=8 r̃=8 tsʷ=8 tˤ=8 t̪ʲ=8 t̻ʰ=8 zˤ=8 ŋkʰ=8 ŋǃ=8 ŋɡʲ=8 ŋʲ=8 ɓː=8 ɔ̤ː=8 ɘː=8 ɡ̊=8 ɬ̪=8 ɯ̞=8 ɯ̤=8 ɺ̠=8 ɽ̃=8 ʜ=8 ᶑ=8 ⁿd̠ʒ=8 aˑ=7 ã̈=7 a̤ː=7 ã̰=7 cʷ=7 dʰ=7 dˤ=7 d̠=7 d̠ʒʲ=7 d̪ʲ=7 e̤ː=7 h̃=7 kǀʰ=7 kˀ=7 ndʷ=7 nʱ=7 n̠t̠ʃʰ=7 q̰=7 t̠ʃʰː=7 t̠ʃ̰=7 t̺s̺=7 t̻s̻=7 z̩=7 æ̃ː=7 ɐ̃=7 ɑ̤=7 ɕː=7 ɖʱ=7 ə˞=7 ɛ̤ː=7 ɛ̰=7 ɢʷ=7 ɤ̃=7 ɨ̞=7 ɪ̃ː=7 ɪ̈=7 ɬʲ=7 ɵ̞=7 ɾ̺=7 ˀb=7 aˤ=6 dzʲ=6 ĭ=6 i̞=6 ḭ̃=6 j̊=6 l̃=6 l̩=6 l̪ʲ=6 l̪ˠ=6 mˀ=6 ntsʰ=6 nˀ=6 n̪ʲ=6 n̪̤=6 o̤ː=6 qχ=6 qχʼ=6 r̤=6 sˀ=6 tsʼː=6 ts̰=6 tʷʰ=6 t̠ʃʷʰ=6 t̪ˤ=6 t̺ʰ=6 uˑ=6 uˤ=6 ŭ=6 ṳː=6 wˀ=6 ð̞=6 ɒ̃=6 ɔ̰=6 ɗ̥=6 ɡǀ=6 ɡǃ=6 ɨ̃ː=6 ɴ=6 ɺ̺̠=6 ʕː=6 ʰt̠ʃ=6 ˀl=6 ã̈ː=5 ă=5 cçʼ=5 dzʷ=5 d̠ʒʱ=5 d̥=5 d̪ˤ=5 e̝=5 iˤ=5 j̪=5 kpʷ=5 kxʰ=5 kǀ͓=5 kǁʰ=5 mbʲ=5 ndʑ=5 ndʲ=5 n̠ʃ=5 n̪ː=5 pʰː=5 pˀ=5 r̩=5 r̺͈=5 s̪ː=5 s͉=5 tsʷʰ=5 tx=5 t̠ʃʷʼ=5 t̪ʰː=5 w̤=5 ỹː=5 ħː=5 ŋmkp=5 ŋǀ=5 ŋǀ͓=5 ŋǁ=5 ŋ̰=5 œ̃=5 œ̃ː=5 ɗ̪=5 ɞ=5 ɫ̪=5 ɬʼ=5 ɬː=5 ɯ̃ː=5 ɯ̰=5 ɲʒ=5 ɲ̤=5 ɳɖʐ=5 ɵ̞ː=5 ɾ̥=5 ʃʼ=5 ʊ̃ː=5 ʏː=5 ʐ͇=5 ʰts=5 ʱm=5 ˀɲ=5 ⁿɖ=5 ⁿɟ=5 a˞=4 aˤː=4 ä̠=4 cçː=4 dzʱ=4 dˤː=4 d̠ʒʰ=4 d̻z̻=4 ĕ=4 ë=4 e̞ˤ=4 ẽ̞ː=4 i̥=4 kpʰ=4 kpʲ=4 kǁ͓=4 kǂ=4 kǃ̠=4 k̟=4 k̰ʷ=4 lʱ=4 l̥ʲ=4 l̪ː=4 nɡ=4 n̠d̠=4 n̪t̪=4 n̪̥=4 oˤ=4 pfʰ=4 ps=4 rʱ=4 rˤ=4 sˤː=4 s̪ˤ=4 tsʰː=4 tʷʼ=4 tˤː=4 t̠ʃˀ=4 t̠ʃ͉=4 t̪s=4 t̪s̪ʲ=4 t̪̺=4 t̪θ=4 t̪θʼ=4 t̺ʼ=4 t̻s̪̻=4 u̞ː=4 u̥=4 ṵ̃=4 v̤=4 xʰ=4 zˤː=4 z̥=4 z̪ʲ=4 z̪ˤ=4 ðʲ=4 ðː=4 ø̃ː=4 ɐ̆=4 ɔ̝=4 ɕʰ=4 ɕʼ=4 ə̤=4 ɛ̝=4 ɜː=4 ɜ̃=4 ɟʷ=4 ɠɓ=4 ɡǁ=4 ɣʲ=4 ɤ̟=4 ɤ̤=4 ɥ̃=4 ɨ̆=4 ɮʲ=4 ɲc=4 ɲ̰=4 ɳɖ=4 ɴq=4 ɸʲ=4 ɻʲ=4 ɽʱ=4 ɾʷ=4 ɾ̤=4 ʁː=4 ʁ̞=4 ʃ͉=4 ʈʼ=4 ʉ̃=4 ʌ̤=4 ʒʲ=4 ʔˤ=4 ʡ=4 ʢ=4 βʷ=4 χʷː=4 a̤ˑ=3 bz=3 bˤ=3 b̤ʱ=3 cçʷ=3 cʲ=3 cʼː=3 c̤=3 dɮ=3 dʼ=3 dˠ=3 d̤z=3 d̤z̤=3 d̤ʒ̤ʱ=3 d̥z̥=3 d̥ʑ̥=3 e̠=3 e̤ˑ=3 ḛ̃=3 fʼ=3 iˤː=3 ï=3 i̞ː=3 i̤ˑ=3 kxʼ=3 kǀʼ=3 kǀ͓ʰ=3 kǃx=3 kʷʼː=3 kˤ=3 lʼ=3 l̥ː=3 mʰ=3 mˤ=3 nsʷ=3 ntʷ=3 nɗ=3 n̠ʒ=3 n̪d̪z̪=3 ö=3 o̝=3 o̞ˤ=3 õ̞ː=3 õ̰=3 qʷː=3 q̰ʷ=3 qχʼː=3 r̠=3 r̠ʲ=3 r̪ː=3 sʼː=3 sˠ=3 s̪ʲ=3 s̻ː=3 tsʷʼ=3 ts̪=3 ts̺=3 tɕʼ=3 tɬʼː=3 tʲʼ=3 tˀ=3 tːs=3 tˠ=3 t̪̰=3 t̪θʰ=3 u˞=3 uˤː=3 üː=3 u̜=3 ṳˑ=3 w̥=3 xʼ=3 y̤=3 z͇=3 æ̰=3 çː=3 ø̞ː=3 ħʷ=3 ŋǁ͓=3 ŋǃ̠=3 ŋɣ=3 ŋ̥ǀ͓ˀ=3 œ̞=3 ɒ̃ː=3 ɔ̤ˑ=3 ɖ̤ʱ=3 ɗʲ=3 ɘ̃=3 ə̰=3 ɛˑ=3 ɛ̆=3 ɛ̤ˑ=3 ɟʝʷ=3 ɟʱ=3 ɟʲ=3 ɟ̟=3 ɟ̤=3 ɟ̰=3 ɡbʲ=3 ɡǂ=3 ɡǃx=3 ɡʷː=3 ɡ̟=3 ɡ̤ǃ=3 ɡ̤ʱ=3 ɡ̤ʷ=3 ɡ̰=3 ɡᶣ=3 ɤ̞̃=3 ɪ̆=3 ɪ̞=3 ɭ̥=3 ɲcʰ=3 ɳʈ=3 ɳʈʂ=3 ɳʈʂʰ=3 ɴqʰ=3 ɹ̥=3 ɹ̩=3 ʁˤ=3 ʂʰ=3 ʃʰ=3 ʃ̺=3 ʄ̥=3 ʈʰː=3 ʊ̈=3 ʊ̜=3 ʊ̤=3 ʌ̃ː=3 ʕʷ=3 ʕ̝=3 ʱd=3 ʱn=3 ʱɾ=3 ʼm=3 ʼn=3 ˀd=3 χʲ=3 χʷˤ=3 χˤ=3 ᶑʼ=3 ⁿtɕʰ=3 ⁿɢ=3";
+// PHOIBLE_DATA_END
+
+const C_BASE = {
+  // symbol: [place, manner, voiced]
+  p: ["bilabial", "plosive", 0], b: ["bilabial", "plosive", 1], t: ["alveolar", "plosive", 0], d: ["alveolar", "plosive", 1],
+  ʈ: ["retroflex", "plosive", 0], ɖ: ["retroflex", "plosive", 1], c: ["palatal", "plosive", 0], ɟ: ["palatal", "plosive", 1],
+  k: ["velar", "plosive", 0], ɡ: ["velar", "plosive", 1], g: ["velar", "plosive", 1], q: ["uvular", "plosive", 0], ɢ: ["uvular", "plosive", 1],
+  ʡ: ["epiglottal", "plosive", 0], ʔ: ["glottal", "plosive", 0],
+  ȶ: ["alveolo-palatal", "plosive", 0], ȡ: ["alveolo-palatal", "plosive", 1],
+  m: ["bilabial", "nasal", 1], ɱ: ["labiodental", "nasal", 1], n: ["alveolar", "nasal", 1], ɳ: ["retroflex", "nasal", 1],
+  ɲ: ["palatal", "nasal", 1], ȵ: ["alveolo-palatal", "nasal", 1], ŋ: ["velar", "nasal", 1], ɴ: ["uvular", "nasal", 1],
+  ʙ: ["bilabial", "trill", 1], r: ["alveolar", "trill", 1], ʀ: ["uvular", "trill", 1],
+  ⱱ: ["labiodental", "tap", 1], ɾ: ["alveolar", "tap", 1], ɽ: ["retroflex", "tap", 1],
+  ɸ: ["bilabial", "fricative", 0], β: ["bilabial", "fricative", 1], f: ["labiodental", "fricative", 0], v: ["labiodental", "fricative", 1],
+  θ: ["dental", "fricative", 0], ð: ["dental", "fricative", 1], s: ["alveolar", "fricative", 0], z: ["alveolar", "fricative", 1],
+  ʃ: ["postalveolar", "fricative", 0], ʒ: ["postalveolar", "fricative", 1], ʂ: ["retroflex", "fricative", 0], ʐ: ["retroflex", "fricative", 1],
+  ɕ: ["alveolo-palatal", "fricative", 0], ʑ: ["alveolo-palatal", "fricative", 1], "\u00E7": ["palatal", "fricative", 0], ʝ: ["palatal", "fricative", 1],
+  x: ["velar", "fricative", 0], ɣ: ["velar", "fricative", 1], χ: ["uvular", "fricative", 0], ʁ: ["uvular", "fricative", 1],
+  ħ: ["pharyngeal", "fricative", 0], ʕ: ["pharyngeal", "fricative", 1], ʜ: ["epiglottal", "fricative", 0], ʢ: ["epiglottal", "fricative", 1],
+  h: ["glottal", "fricative", 0], ɦ: ["glottal", "fricative", 1],
+  ɬ: ["alveolar", "fricative", 0, "lateral"], ɮ: ["alveolar", "fricative", 1, "lateral"],
+  ʋ: ["labiodental", "approximant", 1], ɹ: ["alveolar", "approximant", 1], ɻ: ["retroflex", "approximant", 1],
+  j: ["palatal", "approximant", 1], ɰ: ["velar", "approximant", 1],
+  l: ["alveolar", "approximant", 1, "lateral"], ɭ: ["retroflex", "approximant", 1, "lateral"], ʎ: ["palatal", "approximant", 1, "lateral"],
+  ȴ: ["alveolo-palatal", "approximant", 1, "lateral"], ʟ: ["velar", "approximant", 1, "lateral"], ɫ: ["alveolar", "approximant", 1, "lateral", "velarized"],
+  ɺ: ["alveolar", "tap", 1, "lateral"],
+  w: [["bilabial", "velar"], "approximant", 1], ʍ: [["bilabial", "velar"], "fricative", 0], ɥ: [["bilabial", "palatal"], "approximant", 1],
+  ɓ: ["bilabial", "plosive", 1, "implosive"], ɗ: ["alveolar", "plosive", 1, "implosive"], ᶑ: ["retroflex", "plosive", 1, "implosive"],
+  ʄ: ["palatal", "plosive", 1, "implosive"], ɠ: ["velar", "plosive", 1, "implosive"], ʛ: ["uvular", "plosive", 1, "implosive"],
+  ʘ: ["bilabial", "click", 0], ǀ: ["dental", "click", 0], ǃ: ["postalveolar", "click", 0], ǂ: ["palatal", "click", 0], ǁ: ["alveolar", "click", 0, "lateral"],
+};
+const HEIGHTS = ["close", "near-close", "close-mid", "mid", "open-mid", "near-open", "open"];
+const BACKS = ["front", "central", "back"];
+const V_BASE = {
+  // symbol: [height index, backness index, rounded]
+  i: [0, 0, 0], y: [0, 0, 1], ɨ: [0, 1, 0], ʉ: [0, 1, 1], ɯ: [0, 2, 0], u: [0, 2, 1],
+  ɪ: [1, 0, 0], ʏ: [1, 0, 1], ʊ: [1, 2, 1],
+  e: [2, 0, 0], ø: [2, 0, 1], ɘ: [2, 1, 0], ɵ: [2, 1, 1], ɤ: [2, 2, 0], o: [2, 2, 1],
+  ə: [3, 1, 0],
+  ɛ: [4, 0, 0], œ: [4, 0, 1], ɜ: [4, 1, 0], ɞ: [4, 1, 1], ʌ: [4, 2, 0], ɔ: [4, 2, 1],
+  æ: [5, 0, 0], ɐ: [5, 1, 0],
+  a: [6, 0, 0], ɶ: [6, 0, 1], ɑ: [6, 2, 0], ɒ: [6, 2, 1],
+};
+// Combining diacritics and modifier letters, by what they add.
+const MODS = {
+  "ʰ": "aspirated", "ʱ": "breathy", "̤": "breathy", "̰": "creaky", "ʼ": "ejective", "ˀ": "glottalized",
+  "ʷ": "labialized", "ʲ": "palatalized", "ˠ": "velarized", "ˤ": "pharyngealized", "ᶣ": "labio-palatalized",
+  "ː": "long", "ˑ": "half-long", "̆": "extra-short", "̃": "nasalized", "̥": "voiceless", "̊": "voiceless", "̬": "voiced",
+  "̪": "dental", "̺": "apical", "̻": "laminal", "̠": "retracted", "̟": "advanced", "̝": "raised", "̞": "lowered",
+  "̈": "centralized", "̽": "mid-centralized", "̩": "syllabic", "˞": "rhotic", "̹": "more rounded", "̜": "less rounded",
+  "̯": "non-syllabic", "͈": "fortis", "͉": "lenis", "͇": "alveolar", "͓": "frictionalized", "̘": "ATR", "̙": "RTR",
+};
+const PRE_MODS = { "ʰ": "preaspirated", "ʱ": "preaspirated", "ˀ": "preglottalized", "ʼ": "preglottalized", "ⁿ": "prenasalized", "ᵐ": "prenasalized", "ᵑ": "prenasalized", "ᶬ": "prenasalized" };
+const SECONDARY = ["labialized", "palatalized", "velarized", "pharyngealized", "labio-palatalized", "glottalized"];
+const SIBILANTS = new Set(["s", "z", "ʃ", "ʒ", "ʂ", "ʐ", "ɕ", "ʑ"]);
+
+// Reads a PHOIBLE segment like "kʷʰ", "t̠ʃʼ", "ŋmkp" or "ẽː" into articulatory features. Returns null if it can't.
+const phonemeCache = new Map();
+function describePhoneme(sym) {
+  if (phonemeCache.has(sym)) return phonemeCache.get(sym);
+  const r = readPhoneme(sym);
+  if (r) { r.sym = sym; r.name = phonemeName(r); r.tags = phonemeTags(r); }
+  phonemeCache.set(sym, r);
+  return r;
+}
+function readPhoneme(sym) {
+  // PHOIBLE is in NFD, which splits ç into c + cedilla; put it back together.
+  const chars = Array.from(sym.normalize("NFD").replace(/c\u0327/g, "\u00E7"));
+  // Split into base letters, each with the diacritics that follow it, plus any modifiers before the first base.
+  const pre = [], units = [];
+  for (const ch of chars) {
+    if (C_BASE[ch] || V_BASE[ch]) { units.push({ ch, mods: [] }); continue; }
+    if (MODS[ch] || PRE_MODS[ch] || ch === "͡" || ch === "͜") {
+      if (!units.length) { if (!PRE_MODS[ch]) return null; pre.push(PRE_MODS[ch]); }
+      else if (ch !== "͡" && ch !== "͜") units[units.length - 1].mods.push(MODS[ch] || PRE_MODS[ch]);
+      continue;
+    }
+    return null;
+  }
+  if (!units.length) return null;
+  if (units.every((u) => V_BASE[u.ch])) return units.length === 1 ? readVowel(units[0], pre) : null;
+  if (units.some((u) => V_BASE[u.ch])) return null;
+  return readConsonant(units, pre);
+}
+function readVowel(u, pre) {
+  if (pre.length) return null;
+  let [h, b, round] = V_BASE[u.ch];
+  const mods = new Set(u.mods);
+  if (mods.has("syllabic") || mods.has("ATR") || mods.has("RTR")) return null;
+  if (mods.has("lowered")) h = Math.min(6, h + 1);
+  if (mods.has("raised")) h = Math.max(0, h - 1);
+  if (mods.has("centralized") || mods.has("mid-centralized")) b = 1;
+  if (mods.has("retracted")) b = Math.min(2, b + 1);
+  if (mods.has("advanced")) b = Math.max(0, b - 1);
+  const v = {
+    cls: "vowel", height: HEIGHTS[h], back: BACKS[b], rounded: !!round,
+    voiced: !mods.has("voiceless"),
+    phonation: mods.has("breathy") ? "breathy" : mods.has("creaky") ? "creaky" : null,
+    nasalized: mods.has("nasalized"), long: mods.has("long"), halfLong: mods.has("half-long"), short: mods.has("extra-short"),
+    pharyngealized: mods.has("pharyngealized"), rhotic: mods.has("rhotic"),
+  };
+  for (const m of mods) if (!["lowered", "raised", "centralized", "mid-centralized", "retracted", "advanced", "voiceless", "breathy", "creaky", "nasalized", "long", "half-long", "extra-short", "pharyngealized", "rhotic", "more rounded", "less rounded"].includes(m)) return null;
+  return v;
+}
+function readConsonant(units, pre) {
+  const mods = new Set(pre);
+  units.forEach((u) => u.mods.forEach((m) => mods.add(m)));
+  if (mods.has("non-syllabic")) return null;
+  const info = (u) => {
+    const [place, manner, voiced, extra, extra2] = C_BASE[u.ch];
+    let places = Array.isArray(place) ? place.slice() : [place];
+    const um = new Set(u.mods);
+    // Dental and retracted diacritics move the place of an alveolar.
+    if (places.length === 1 && places[0] === "alveolar") {
+      if (um.has("dental")) places = ["dental"];
+      else if (um.has("retracted")) places = ["postalveolar"];
+    }
+    // A lowered fricative is an approximant (β̞, ð̞, ʁ̞).
+    const m = manner === "fricative" && um.has("lowered") && extra !== "lateral" ? "approximant" : manner;
+    return { ch: u.ch, places, manner: m, sibilant: SIBILANTS.has(u.ch), voiced: !!voiced, lateral: extra === "lateral", airstream: extra === "implosive" ? "implosive" : manner === "click" ? "click" : "pulmonic", velarized: extra2 === "velarized" };
+  };
+  const parts = units.map(info);
+  const c = { cls: "consonant", prenasalized: mods.has("prenasalized"), coarticulated: false };
+  let core;
+  // Clicks: an optional velar or uvular accompaniment (k, ɡ, ŋ, q, ɴ) written before the click letter.
+  const clicks = parts.filter((p) => p.airstream === "click");
+  if (clicks.length > 1) return null;
+  if (clicks.length) {
+    const i = parts.indexOf(clicks[0]), before = parts.slice(0, i), after = parts.slice(i + 1);
+    const a = before[0];
+    if (before.length > 1 || (a && !(["velar", "uvular"].includes(a.places[0]) && ["plosive", "nasal"].includes(a.manner)))) return null;
+    if (after.length > 1 || (after[0] && after[0].manner !== "fricative")) return null;
+    core = { ...clicks[0], voiced: a ? a.voiced : false, nasalClick: !!(a && a.manner === "nasal"), affricated: !!after.length };
+  } else {
+    let rest = parts.slice();
+    // Prenasalization: a nasal before an oral stop, affricate or fricative ("mb", "nts", "ŋɡ").
+    if (rest.length > 1 && rest[0].manner === "nasal" && rest.slice(1).some((p) => p.manner !== "nasal")) {
+      c.prenasalized = true; rest = rest.slice(1);
+      if (rest.length > 1 && rest[0].manner === "nasal" && rest[1].manner !== "nasal") rest = rest.slice(1); // "ŋmkp"
+    }
+    if (rest.length === 1) core = rest[0];
+    else if (rest.length === 2) {
+      const [a, b] = rest;
+      if (a.manner === "plosive" && b.manner === "fricative" && a.airstream === "pulmonic") {
+        // Affricate: takes the fricative's place and laterality, the stop's voicing.
+        core = { ...b, manner: "affricate", voiced: a.voiced || b.voiced };
+      } else if (a.manner === b.manner && ["plosive", "nasal"].includes(a.manner) && a.places[0] !== b.places[0]) {
+        core = { ...a, places: [b.places[0], a.places[0]].sort((x, y) => (x === "bilabial" ? -1 : y === "bilabial" ? 1 : 0)), airstream: a.airstream === "implosive" || b.airstream === "implosive" ? "implosive" : "pulmonic" };
+        c.coarticulated = true;
+      } else return null;
+    } else return null;
+  }
+  Object.assign(c, {
+    places: core.places, manner: core.manner, lateral: core.lateral, affricated: !!core.affricated,
+    airstream: mods.has("ejective") ? "ejective" : core.airstream, nasalClick: !!core.nasalClick,
+    voiced: mods.has("voiceless") ? false : mods.has("voiced") ? true : core.voiced,
+    aspirated: mods.has("aspirated"), breathy: mods.has("breathy"), creaky: mods.has("creaky"),
+    preaspirated: mods.has("preaspirated"), preglottalized: mods.has("preglottalized"),
+    secondary: SECONDARY.filter((s) => mods.has(s)).concat(core.velarized ? ["velarized"] : []),
+    long: mods.has("long"), halfLong: mods.has("half-long"), syllabic: mods.has("syllabic"),
+    apical: mods.has("apical"), laminal: mods.has("laminal"), nasalized: mods.has("nasalized"),
+    fortis: mods.has("fortis"), lenis: mods.has("lenis"),
+    fronted: places0(units, "advanced"), backed: places0(units, "retracted") && !(core.places[0] === "postalveolar"),
+  });
+  if (c.airstream === "ejective") c.voiced = false;
+  c.sibilant = ["fricative", "affricate"].includes(c.manner) && !!core.sibilant;
+  if (c.places.length > 1 && ["plosive", "nasal"].includes(c.manner)) c.coarticulated = true;
+  for (const m of mods) {
+    const known = ["aspirated", "breathy", "creaky", "ejective", "glottalized", "long", "half-long", "voiceless", "voiced", "dental", "retracted", "apical", "laminal", "syllabic",
+      "prenasalized", "preaspirated", "preglottalized", "fortis", "lenis", "alveolar", "advanced", "nasalized", "frictionalized", "lowered", "raised", ...SECONDARY];
+    if (!known.includes(m)) return null;
+  }
+  return c;
+}
+function places0(units, mod) { return units.some((u) => u.mods.includes(mod)); }
+function placeName(places) {
+  if (places.length === 1) return places[0];
+  if (places[0] === "bilabial") return "labial-" + places[1];
+  return places.join("-");
+}
+function phonemeName(p) {
+  if (p.cls === "vowel") {
+    const w = [];
+    if (p.long) w.push("long"); else if (p.halfLong) w.push("half-long"); else if (p.short) w.push("extra-short");
+    if (!p.voiced) w.push("voiceless");
+    if (p.phonation) w.push(p.phonation + "-voiced");
+    if (p.nasalized) w.push("nasalized");
+    if (p.pharyngealized) w.push("pharyngealized");
+    if (p.rhotic) w.push("rhotic");
+    w.push(p.height, p.back, p.rounded ? "rounded" : "unrounded", "vowel");
+    return w.join(" ");
+  }
+  const w = [];
+  if (p.long) w.push("long"); else if (p.halfLong) w.push("half-long");
+  if (p.fortis) w.push("fortis"); else if (p.lenis) w.push("lenis");
+  if (p.syllabic) w.push("syllabic");
+  if (p.prenasalized) w.push("prenasalized");
+  if (p.preaspirated) w.push("preaspirated");
+  if (p.preglottalized) w.push("preglottalized");
+  w.push(...p.secondary);
+  if (p.airstream === "click") {
+    w.push(p.nasalClick ? "nasal" : p.breathy ? "breathy-voiced" : p.voiced ? "voiced" : "voiceless");
+    if (p.aspirated) w.push("aspirated");
+    if (p.creaky) w.push("creaky");
+    w.push(placeName(p.places));
+    if (p.lateral) w.push("lateral");
+    if (p.affricated) w.push("affricated");
+    w.push("click");
+    return w.join(" ");
+  }
+  const sonorant = ["nasal", "trill", "tap", "approximant"].includes(p.manner);
+  if (p.breathy) w.push("breathy-voiced");
+  else if (p.creaky) w.push("creaky-voiced");
+  else if (p.airstream === "pulmonic" && !(p.voiced && sonorant)) w.push(p.voiced ? "voiced" : "voiceless");
+  else if (p.airstream === "implosive" && !p.voiced) w.push("voiceless");
+  if (p.aspirated) w.push("aspirated");
+  if (p.nasalized) w.push("nasalized");
+  if (p.apical) w.push("apical"); else if (p.laminal) w.push("laminal");
+  if (p.fronted) w.push("fronted"); else if (p.backed) w.push("backed");
+  w.push(placeName(p.places));
+  if (p.sibilant) w.push("sibilant");
+  if (p.lateral) w.push("lateral");
+  if (p.airstream === "ejective") w.push("ejective");
+  if (p.airstream === "implosive") w.push("implosive");
+  else w.push(p.manner);
+  return w.join(" ");
+}
+function phonemeTags(p) {
+  const t = new Set([p.cls]);
+  if (p.cls === "vowel") {
+    t.add(p.height); t.add(p.back); t.add(p.rounded ? "rounded" : "unrounded");
+    t.add(p.voiced ? "voiced" : "voiceless");
+    if (p.phonation) t.add(p.phonation);
+    if (p.nasalized) t.add("nasalized");
+    if (p.long) t.add("long");
+    if (p.pharyngealized) t.add("pharyngealized");
+    if (p.rhotic) t.add("rhotic");
+    return t;
+  }
+  p.places.forEach((x) => t.add(x));
+  t.add(p.manner); t.add(p.airstream); t.add(p.voiced ? "voiced" : "voiceless");
+  for (const k of ["lateral", "sibilant", "coarticulated", "prenasalized", "aspirated", "breathy", "creaky", "long", "syllabic", "apical", "laminal", "preaspirated", "preglottalized", "nasalized", "fortis", "lenis"]) if (p[k]) t.add(k);
+  p.secondary.forEach((x) => t.add(x));
+  return t;
+}
+
+// Frequency bands, matching the card text: common is 6% or more of languages, rare is 1% or less.
+function bandFor(pct) { return pct >= 6 ? "common" : pct <= 1 ? "rare" : "uncommon"; }
+let phonemeTable = null;
+function phonemes() {
+  if (phonemeTable) return phonemeTable;
+  phonemeTable = [];
+  for (const pair of PHOIBLE_DATA.split(" ")) {
+    if (!pair) continue;
+    const at = pair.lastIndexOf("=");
+    const sym = pair.slice(0, at), langs = +pair.slice(at + 1);
+    const p = describePhoneme(sym);
+    if (!p) continue;
+    const pct = (100 * langs) / PHOIBLE_LANGS;
+    p.pct = pct; p.band = bandFor(pct); p.tags.add(p.band);
+    phonemeTable.push(p);
+  }
+  return phonemeTable;
+}
+const POOL_ALIASES = { "co-articulated": "coarticulated", stop: "plosive", consonants: "consonant", vowels: "vowel", high: "close", low: "open" };
+function poolTerms(spec) {
+  return spec.toLowerCase().split("+").map((s) => s.trim()).filter(Boolean).map((s) => POOL_ALIASES[s] || s);
+}
+function knownTag(tag) { return phonemes().some((p) => p.tags.has(tag)); }
+function phonemeInfo(sym) { return phonemes().find((p) => p.sym === sym) || null; }
+function poolFor(terms) { return phonemes().filter((p) => terms.every((t) => p.tags.has(t))); }
+const HAND_MAX = 20;
+// Deals up to HAND_MAX phonemes from the pool, leaving out symbols already taken.
+function dealHand(slot, taken) {
+  const skip = new Set(taken || []);
+  return shuffle(poolFor(slot.terms).filter((p) => !skip.has(p.sym))).slice(0, HAND_MAX).map((p) => p.sym);
+}
+// Truncated, not rounded, so a 5.96% phoneme doesn't read as 6% (the common threshold).
+function fmtPct(pct) {
+  const d = pct >= 10 ? 0 : pct >= 1 ? 1 : 2, f = 10 ** d;
+  return (Math.floor(pct * f) / f).toFixed(d) + "%";
+}
+function phonemeLabel(sym) {
+  const p = describePhoneme(sym);
+  return p ? `/${sym}/ (${p.name})` : `/${sym}/`;
+}
 
 const GLYPHS = "ʃŋɣʔəɸθɮʕɲʎɰχɨøɯɤʁçɬʒɟʋɐ".split("");
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -602,7 +918,9 @@ function compile(tpl) {
       if (mm.index > l) toks.push({ t: "text", s: seg.s.slice(l, mm.index), cond: seg.cond });
       const inner = mm[1].trim();
       const dm = inner.match(/^d(\d+)(?:\s*[*x×]\s*(\d+))?$/i);
-      if (dm) toks.push({ t: "die", n: +dm[1], mult: dm[2] ? +dm[2] : 1, cond: seg.cond });
+      const pm = inner.match(/^ipa\s*:\s*(.+)$/i);
+      if (pm) toks.push({ t: "pool", spec: pm[1].trim(), cond: seg.cond });
+      else if (dm) toks.push({ t: "die", n: +dm[1], mult: dm[2] ? +dm[2] : 1, cond: seg.cond });
       else if (/^\d+$/.test(inner)) {
         toks.push({ t: "text", s: inner, cond: seg.cond });
         warnings.push(`[${inner}] has no “d”, so it is a fixed ${inner}. Write [d${inner}] to roll for it.`);
@@ -645,7 +963,14 @@ function compile(tpl) {
       continue;
     }
     let slot, sp = gap;
-    if (k.t === "die") {
+    if (k.t === "pool") {
+      const terms = poolTerms(k.spec);
+      const unknown = terms.filter((t) => !knownTag(t));
+      const size = unknown.length ? 0 : poolFor(terms).length;
+      if (unknown.length) warnings.push(`[ipa:${k.spec}]: “${unknown.join("”, “")}” isn’t a phoneme feature this tool knows.`);
+      else if (!size) warnings.push(`[ipa:${k.spec}] matches no phonemes.`);
+      slot = { kind: "pool", spec: k.spec, terms, poolSize: size, sides: Math.max(1, Math.min(HAND_MAX, size)) };
+    } else if (k.t === "die") {
       let j = i + 1;
       while (j < toks.length && toks[j].t === "text" && !toks[j].s.trim()) j++;
       if (j < toks.length && toks[j].t === "list" && toks[j].cond === k.cond) {
@@ -671,7 +996,7 @@ function compile(tpl) {
       const n = k.opts.length;
       slot = { kind: n === 2 ? "choice" : "pick", sides: n, options: k.opts, implicit: true };
     }
-    if (slot.sides < 2) warnings.push(`A d${slot.sides} has only one result.`);
+    if (slot.sides < 2 && !(slot.kind === "pool" && !slot.poolSize)) warnings.push(slot.kind === "pool" ? `[ipa:${slot.spec}] matches only one phoneme.` : `A d${slot.sides} has only one result.`);
     slot.sides = Math.max(1, slot.sides);
     slot.cond = cond;
     slots.push(slot);
@@ -749,7 +1074,8 @@ function ruleHTML(card, values, activeIdx) {
       html += lead + `<span class="slot done" data-i="${it.p.i}"><span class="val">${esc(it.text)}</span>${sup}</span>`;
     } else {
       const st = it.p.i === activeIdx ? " active" : "";
-      html += lead + `<span class="slot${st}" data-i="${it.p.i}"><span class="chip">${esc(dieName(slot))}</span></span>`;
+      const chip = slot.kind === "pool" ? `/?/ ${dieName(slot)}` : dieName(slot);
+      html += lead + `<span class="slot${st}" data-i="${it.p.i}"><span class="chip">${esc(chip)}</span></span>`;
     }
   }
   if (open !== null) html += "</span>";
@@ -774,6 +1100,11 @@ function rollSummary(card, values) {
     if (!v || v.skipped) return `${dieName(s)} skipped`;
     if (s.kind === "number") return isModified(s) ? `${dieName(s)} → ${v.label} (rolled ${v.n})` : `${dieName(s)} → ${v.n}`;
     if (s.kind === "choice") return `coin → ${v.label}`;
+    if (s.kind === "pool") {
+      if (!v.sym) return `${s.spec}: none left`;
+      const p = phonemeInfo(v.sym);
+      return `d${v.of} → ${v.n} · /${v.sym}/${p ? ` · ${fmtPct(p.pct)} of languages` : ""}`;
+    }
     return `${dieName(s)} → ${v.n} · ${v.label}`;
   });
 }
@@ -943,7 +1274,7 @@ class Die {
 
 /* ---------- App state ---------- */
 const state = {
-  source: ((s) => (typeof s !== "string" || s === OLD_DEFAULT ? DEFAULT_SOURCE : s))(ls.get("pc.source", DEFAULT_SOURCE)),
+  source: ((s) => (typeof s !== "string" || s === OLD_DEFAULT || s === BASE_DEFAULT ? DEFAULT_SOURCE : s))(ls.get("pc.source", DEFAULT_SOURCE)),
   library: [],
   pile: ls.get("pc.pile", null),
   deck: ls.get("pc.deck", []),
@@ -958,12 +1289,29 @@ function applySource(src, { reshuffle } = { reshuffle: true }) {
   state.library = parseLibrary(src).cards;
   const ids = new Set(state.library.map((c) => c.id));
   if (reshuffle || !Array.isArray(state.pile) || state.pile.some((id) => !ids.has(id))) reshufflePile(false);
+  else addNewCards();
   renderPile();
+}
+// Cards added to the list since the pile was dealt (like new built-in cards) are shuffled into the pile.
+function addNewCards() {
+  let known = ls.get("pc.known", null);
+  if (!Array.isArray(known)) {
+    const inPlay = ls.get("pc.inplay", null);
+    known = state.pile.concat(state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.id] : []);
+  }
+  const seen = new Set(known);
+  for (const c of state.library) {
+    if (seen.has(c.id)) continue;
+    state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, c.id);
+  }
+  ls.set("pc.pile", state.pile);
+  ls.set("pc.known", state.library.map((c) => c.id));
 }
 function reshufflePile(announce = true) {
   const inPlay = state.current ? state.current.card.id : null;
   state.pile = shuffle(state.library.map((c) => c.id).filter((id) => id !== inPlay));
   ls.set("pc.pile", state.pile);
+  ls.set("pc.known", state.library.map((c) => c.id));
   renderPile();
   if (announce) {
     toast(`Shuffled ${state.pile.length} card${state.pile.length === 1 ? "" : "s"} into the pile.`);
@@ -1044,7 +1392,7 @@ function draw() {
   const id = state.pile.shift(); ls.set("pc.pile", state.pile);
   const card = state.library.find((x) => x.id === id);
   if (!card) { reshufflePile(false); return draw(); }
-  state.current = { card, values: [], idx: -1 };
+  state.current = { card, values: [], idx: -1, hands: {} };
   saveInPlay();
   const topBack = $("pile").querySelector(".back-layer:nth-child(3)");
   renderCurrent(topBack);
@@ -1057,14 +1405,33 @@ function advance(first) {
   let next = -1;
   for (let i = 0; i < c.card.slots.length; i++) {
     if (c.values[i]) continue;
-    if (condState(c.card.slots[i].cond, c.values) === "unmet") { c.values[i] = { skipped: true }; continue; }
+    const slot = c.card.slots[i];
+    if (condState(slot.cond, c.values) === "unmet") { c.values[i] = { skipped: true }; continue; }
+    if (slot.kind === "pool" && !c.hands[i]) {
+      c.hands[i] = dealHand(slot, takenPhonemes(c));
+      if (!c.hands[i].length) { c.values[i] = { n: 0, of: 0, sym: null, label: "no phoneme (every one in this pool is already in your deck)" }; continue; }
+    }
     next = i; break;
   }
   c.idx = next;
   saveInPlay();
   updateRule();
   if (next === -1) { setTrayDone(); return; }
-  setTrayForSlot(c.card.slots[next], first);
+  setTrayForSlot(liveSlot(c, next), first);
+}
+// The slot as the tray rolls it: a phoneme pool becomes a pick from the hand dealt for it.
+function liveSlot(c, i) {
+  const slot = c.card.slots[i];
+  if (slot.kind !== "pool") return slot;
+  const hand = c.hands[i] || [];
+  return { ...slot, kind: "pick", pool: true, sides: Math.max(1, hand.length), options: hand };
+}
+// Phonemes already mandated by kept cards, or earlier on this card, aren't dealt again.
+function takenPhonemes(c) {
+  const out = [];
+  state.deck.forEach((e) => (e.phonemes || []).forEach((s) => out.push(s)));
+  if (c) c.values.forEach((v) => { if (v && v.sym) out.push(v.sym); });
+  return out;
 }
 
 /* ---------- Tray ---------- */
@@ -1118,13 +1485,22 @@ function setTrayForSlot(slot, first) {
     sub = (ops.length ? upperLead(ops.join(", then ")) + ". The total goes on the card." : "The number goes straight onto the card.") + ` Blank ${pos} of ${n}.`;
   }
   else if (slot.kind === "choice") { lead = `Flip the coin: ${slot.options.join(" or ")}.`; sub = `Blank ${pos} of ${n}.`; }
+  else if (slot.pool) {
+    const len = slot.options.length;
+    lead = `Roll the ${name} to pick a phoneme.`;
+    const pool = slot.terms.join(" ");
+    sub = `${len === slot.poolSize ? `All ${len}` : `${len} of the ${slot.poolSize}`} ${pool} phonemes are dealt below. Hover one for its name. Blank ${pos} of ${n}.`;
+  }
   else {
     const len = slot.options.length;
     lead = `Roll the ${name} to pick from ${len} options.`;
     sub = `Whichever number lands, that option goes on the card.${slot.sides > len ? ` Anything above ${len} is rolled again.` : ""} Blank ${pos} of ${n}.`;
   }
   setPrompt(lead, sub);
-  $("strip").innerHTML = slot.options ? slot.options.map((o, i) => `<span class="opt" data-n="${i + 1}"><b>${i + 1}</b>${esc(o)}</span>`).join("") : "";
+  $("strip").innerHTML = !slot.options ? "" : slot.pool
+    ? slot.options.map((sym, i) => { const p = phonemeInfo(sym); const t = p ? `${p.name}, ${fmtPct(p.pct)} of languages` : sym;
+        return `<span class="opt ipa" data-n="${i + 1}" title="${esc(t)}" aria-label="${i + 1}: ${esc(sym)}, ${esc(t)}"><b>${i + 1}</b>${esc(sym)}</span>`; }).join("")
+    : slot.options.map((o, i) => `<span class="opt" data-n="${i + 1}"><b>${i + 1}</b>${esc(o)}</span>`).join("");
 }
 function setTrayDone() {
   const noDice = state.current && !state.current.card.slots.length;
@@ -1140,14 +1516,15 @@ function setPrompt(lead, sub) { $("prompt").innerHTML = `<span class="lead">${es
 
 function onSlotResult(n, die) {
   const c = state.current; if (!c || c.idx < 0) return;
-  const i = c.idx, slot = c.card.slots[i];
+  const i = c.idx, slot = liveSlot(c, i);
   if (slot.options && n > slot.options.length) {
     setPrompt(`Rolled ${n}. There’s no option ${n}, so roll again.`, `Only 1 to ${slot.options.length} have options on this card.`);
     die.el.classList.remove("landed"); die.el.classList.add("waiting");
     return;
   }
   die.locked = true;
-  const label = slot.options ? slot.options[n - 1] : String(n * (slot.mult || 1) + (slot.offset || 0));
+  const sym = slot.pool ? slot.options[n - 1] : null;
+  const label = sym ? phonemeLabel(sym) : slot.options ? slot.options[n - 1] : String(n * (slot.mult || 1) + (slot.offset || 0));
   let from = die.el;
   if (slot.options) {
     const cell = $("strip").querySelector(`.opt[data-n="${n}"]`);
@@ -1164,8 +1541,8 @@ function onSlotResult(n, die) {
   state.busy = true;
   setTimeout(() => {
     const target = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
-    fly(from, target, label, () => {
-      c.values[i] = { n, label };
+    fly(from, target, sym ? `/${sym}/` : label, () => {
+      c.values[i] = sym ? { n, label, sym, of: slot.options.length } : { n, label };
       state.busy = false;
       updateRule();
       const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
@@ -1202,6 +1579,8 @@ function keep() {
     rolls: rollSummary(c.card, c.values),
     createdAt: Date.now(),
   };
+  const syms = c.values.filter((v) => v && v.sym).map((v) => v.sym);
+  if (syms.length) entry.phonemes = syms; // read by the language profile (plan, Phase 3)
   const el = $("cardSlot").querySelector(".card");
   state.busy = true;
   const finish = () => {
@@ -1228,7 +1607,7 @@ function discard() {
 }
 function saveInPlay() {
   const c = state.current;
-  ls.set("pc.inplay", c ? { id: c.card.id, values: c.values } : null);
+  ls.set("pc.inplay", c ? { id: c.card.id, values: c.values, hands: c.hands } : null);
 }
 
 /* ---------- Deck ---------- */
@@ -1315,7 +1694,7 @@ async function connectStore() {
     store.db = db; store.base = "data/users/" + uid;
     try {
       const lib = await db.doc(store.base + "/prefs/library").get();
-      if (lib.exists && typeof lib.data().source === "string" && lib.data().source !== OLD_DEFAULT && lib.data().source !== state.source) {
+      if (lib.exists && typeof lib.data().source === "string" && lib.data().source !== OLD_DEFAULT && lib.data().source !== BASE_DEFAULT && lib.data().source !== state.source) {
         applySource(lib.data().source, { reshuffle: false });
         ls.set("pc.source", lib.data().source);
         if (!state.current) setTrayIdle();
@@ -1439,7 +1818,7 @@ const saved = ls.get("pc.inplay", null);
 if (saved) {
   const card = state.library.find((c) => c.id === saved.id);
   if (card) {
-    state.current = { card, values: Array.isArray(saved.values) ? saved.values : [], idx: -1 };
+    state.current = { card, values: Array.isArray(saved.values) ? saved.values : [], idx: -1, hands: saved.hands && typeof saved.hands === "object" ? saved.hands : {} };
     state.pile = state.pile.filter((id) => id !== card.id);
   }
 }

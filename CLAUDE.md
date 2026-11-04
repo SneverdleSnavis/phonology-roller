@@ -11,21 +11,23 @@ Read `docs/PLAN.md` first. Its "Where things stand" section says what is built a
 
 ## Script layout (in order)
 
-1. `DEFAULT_SOURCE`: the 57 built-in cards, one array of columns per row, joined with tabs. `OLD_DEFAULT` is the first 3-card version, kept so saved copies of it upgrade automatically.
+1. `BASE_DEFAULT` (the 57 original cards) plus `PHONEME_ROWS` (phoneme mandate cards) make `DEFAULT_SOURCE`. `OLD_DEFAULT` (the first 3-card version) and `BASE_DEFAULT` are kept so saved copies of them upgrade automatically. New cards are shuffled into an existing pile via `pc.known`.
+   Then the phoneme section: `PHOIBLE_DATA` (generated, don't hand-edit), `describePhoneme(sym)` which reads features from the IPA symbol, tags and bands, and `poolFor` / `dealHand` for `[ipa:…]` pools.
 2. `catInfo` / `suitFor`: corner rank (`/C/`, `[C]`, `/V/`, `[V]`, `/X/`, `ˈσ`, `σ`) and suit colour per category.
-3. Parser: `compile(tpl)` turns rule text into `parts` (text and slot pieces, each with `sp` for a space before it, and a `cond`) and `slots` (`kind`: number, pick or choice, plus `sides`, `options`, `mult`, `offset`, `cond`). `parseLibrary(src)` splits rows.
+3. Parser: `compile(tpl)` turns rule text into `parts` (text and slot pieces, each with `sp` for a space before it, and a `cond`) and `slots` (`kind`: number, pick, choice or pool, plus `sides`, `options`, `mult`, `offset`, `cond`). `parseLibrary(src)` splits rows.
 4. Rendering: `pieces` → `ruleHTML` (card in play), `ruleText` (plain text), `ruleHTMLDone` (deck), `rollSummary`.
 5. `Die` class: 2D throw physics in the tray, flick or tap, `prefers-reduced-motion` support. Picks rolled above the list length are re-rolled in `onSlotResult`.
 6. App state, pile, card in play, tray, deck, saving (`connectStore`), editor, wiring, boot.
 
 ## Saving
 
-- With `db` available and a user id, the deck is stored in `data/users/<id>/deck/<entryId>` and a custom card list in `data/users/<id>/prefs/library`. Otherwise it falls back to `localStorage` keys `pc.deck`, `pc.source`, `pc.pile`, `pc.inplay` and `pc.sound`.
+- With `db` available and a user id, the deck is stored in `data/users/<id>/deck/<entryId>` and a custom card list in `data/users/<id>/prefs/library`. Otherwise it falls back to `localStorage` keys `pc.deck`, `pc.source`, `pc.pile`, `pc.inplay` (with any dealt phoneme hands), `pc.known` and `pc.sound`. Kept phoneme cards carry `phonemes: [symbols]` on the deck entry.
 - The language profile planned in Phase 3 should be **derived from the deck**, never stored separately.
 
 ## Checking changes
 
 - Run `node scripts/check-cards.js` after any parser or card-list change. It needs the `'use strict';` and `/* ---------- Dice` markers to stay in the script.
+- To rebuild the phoneme table: download `https://raw.githubusercontent.com/phoible/dev/v2.0/data/phoible.csv` (26 MB, keep it out of the repo) and run `node scripts/build-phonemes.js path/to/phoible.csv`. It prints the segments it couldn't read.
 - For UI changes, one headless Playwright run is enough: draw with `d`, roll with `r`, keep with `k`, and watch for page errors.
 
 ## Conventions

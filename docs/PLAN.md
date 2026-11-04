@@ -5,7 +5,8 @@ As of 2026-11-04. Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5P
 ## Where things stand
 
 - **Built:** the roller in `phonology-challenge.html`, with all 57 hand-made cards, the parser (`[dN]`, `A+[dN]`, `[dN*K]`, lists, coin flips, `(If x: …)`), dice physics, the deck, and account or browser saving.
-- **Not started:** everything below. **Next step: Phase 1** (card fixes and families).
+- **Phase 4, started early (profile-free part):** 12 phoneme mandate cards, the `[ipa:…]` pool syntax (feature terms joined with `+`), the bundled PHOIBLE 2.0 table (871 segments), a dealt hand of up to 20, and the phoneme name on the card. Kept cards store their phonemes in `entry.phonemes` for the profile to read later. Not done yet: filtering pools against the profile and the feature write-back, which wait on Phase 3.
+- **Not started:** everything else below. **Next step: Phase 1** (card fixes and families), unless phoneme cards continue first.
 - **Unanswered question from the doc:** should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split?
 
 ## Summary
@@ -70,7 +71,9 @@ These cards require specific phonemes, such as "Include a rare phoneme" or "Incl
 - Consonants: place, manner, voicing and phonation, airstream (pulmonic, ejective, implosive, click), secondary articulation, laterality, sibilance, length. Co-articulated stops such as k͡p and ŋ͡m carry two places.
 - Vowels: height, backness, rounding, nasality, phonation, length.
 
-**Data source.** [PHOIBLE](https://phoible.org) lists segments from about 3,000 language inventories, with feature values and the share of languages that have each one. Its frequency bands match your existing thresholds: 6% or more is common, 5% or less is uncommon, 1% or less is rare. A trimmed table (symbol, features, frequency) ships with the page. PHOIBLE is licensed CC BY-SA, so the page credits it. Before building, check the current release's feature set and licence terms.
+**Data source.** [PHOIBLE](https://phoible.org) 2.0 lists segments from 3,020 inventories covering 2,185 languages. Its frequency bands match your existing thresholds: 6% or more is common, 1% or less is rare, and everything in between is uncommon (so the 14 segments between 5% and 6% count as uncommon, though the Uncommon phonemes card says "5% or less"). Frequency is the share of languages (distinct Glottocodes) that have a segment.
+
+As built: the page ships only symbols and language counts (about 5 KB). Features come from reading the IPA symbol itself (`describePhoneme`), so the terms match the IPA chart and your cards. `scripts/build-phonemes.js` regenerates the table from the PHOIBLE CSV. It drops tones, diphthongs, merged `a|b` segments and anything found in fewer than 3 languages, which leaves 871 segments (93 common, 200 uncommon, 578 rare). PHOIBLE data is licensed **CC BY 4.0** (not CC BY-SA), and the page credits it under the deck.
 
 **How a phoneme roll works**
 
