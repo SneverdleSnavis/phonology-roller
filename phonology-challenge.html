@@ -94,6 +94,7 @@ button { font: inherit; color: inherit; }
 }
 .btn:hover:not(:disabled) { transform: translateY(-1px); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn[hidden] { display: none; }
 .btn.primary { background: var(--suit); color: var(--paper); border-color: transparent; }
 .btn.accent { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .btn.ghost { background: transparent; }
@@ -375,7 +376,26 @@ button.opt.pick.hit { background: var(--suit); color: var(--paper); }
 .strip .linkish { font-size: 14px; align-self: center; margin-left: 4px; }
 .slot.pickable { cursor: pointer; border-radius: 4px; outline: 2px dashed var(--suit); outline-offset: 1px; }
 .slot.pickable:hover { background: color-mix(in srgb, var(--suit) 12%, transparent); }
-.pile-meta .free { display: block; margin-top: 4px; color: var(--suit-4); font-weight: 500; }
+/* Power-up tokens and active curses, under the card in play */
+.tokens { display: grid; gap: 7px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); }
+.tok-head { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.tok-row, .tok-sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tok-sub > span { font-size: 13.5px; color: var(--muted); font-style: italic; margin-right: 2px; }
+.tok-empty { margin: 0; font-size: 13.5px; color: var(--muted); font-style: italic; line-height: 1.35; }
+.tok {
+  font-family: var(--f-display); font-weight: 600; font-size: 13.5px; line-height: 1; padding: 7px 11px; border-radius: 999px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--suit-4) 55%, var(--line)); background: color-mix(in srgb, var(--suit-4) 12%, var(--paper)); color: var(--ink);
+}
+.tok:hover:not([aria-disabled="true"]) { background: color-mix(in srgb, var(--suit-4) 22%, var(--paper)); }
+.tok[aria-disabled="true"] { opacity: .5; cursor: help; }
+.tok .k, .curse .k { font-family: var(--f-mono); font-weight: 500; font-size: 11px; color: var(--muted); }
+.curse {
+  font-size: 13.5px; line-height: 1.2; padding: 4px 10px; border-radius: 999px; cursor: help;
+  border: 1px solid color-mix(in srgb, var(--danger) 60%, var(--line)); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--paper));
+}
+.card .cursed { margin: -4px 0 0; font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; color: var(--danger); }
+.mini li.cur { color: var(--danger); }
+.btn[aria-disabled="true"] { opacity: .45; cursor: help; }
 .mini li.chg { color: var(--suit); }
 .why { font-size: 13.5px; color: var(--muted); line-height: 1.4; }
 .why:empty { display: none; }
@@ -442,6 +462,7 @@ button.opt.pick.hit { background: var(--suit); color: var(--paper); }
     </div>
     <div class="top-actions">
       <span class="status" id="status" data-mode="local">Saved in this browser</span>
+      <button class="btn ghost" id="gameBtn" aria-pressed="true" type="button">Game layer on</button>
       <button class="btn ghost" id="soundBtn" aria-pressed="false" type="button">Sound off</button>
       <button class="btn" id="editBtn" type="button">Edit cards</button>
     </div>
@@ -468,6 +489,7 @@ button.opt.pick.hit { background: var(--suit); color: var(--paper); }
         <button class="btn ghost" id="discardBtn" type="button">Discard</button>
         <button class="btn primary" id="keepBtn" type="button" disabled>Keep card</button>
       </div>
+      <div class="tokens" id="tokens" aria-label="Power-ups and curses"></div>
     </section>
 
     <section class="tray-zone" aria-label="Dice tray">
@@ -523,7 +545,9 @@ button.opt.pick.hit { background: var(--suit); color: var(--paper); }
       <dt>[ipa:rare]</dt><dd>Deal up to 20 phonemes from a pool and roll for one. Pools: common, uncommon, rare, consonant, vowel, any place, manner or vowel height, front, back, rounded, unrounded, ejective, implosive, click, coarticulated, prenasalized, aspirated, nasalized, long and more. Join them with +, like [ipa:rare+vowel].</dd>
       <dt>family=…; needs=…</dt><dd>An optional last column of tags, separated by semicolons. family allows one card of the family in the deck. needs=tone keeps a card out of the pile until the deck has tone.</dd>
       <dt>effect=include</dt><dd>How a card writes to the language profile: include (or rule out on “don't”), exclude, neutralize, at-most, symmetric or count. It applies to the card's named list, or to feature=… for cards without one.</dd>
-      <dt>modifier=reroll</dt><dd>Makes a modifier card, which changes a kept card instead of the language. reroll rolls one of its dice again, flip turns its do into don't (or back), and choose lets you choose your next pick instead of rolling it.</dd>
+      <dt>powerup=reroll</dt><dd>Makes a power-up card. Drawing it gives a token you spend when you choose: reroll (one die on the card in play or a kept card), flip (a kept card's do or don't), choose (pick an option instead of rolling), discard or cleanse (end a curse). modifier= still works.</dd>
+      <dt>curse=multiplier</dt><dd>Makes a curse card: exact-count, long-odds or multiplier. It lasts for the last number rolled on it, or lasts=N. A multiplier's first number is the factor.</dd>
+      <dt>copies=3</dt><dd>Puts that many copies of the card in the pile.</dd>
       <dt>counts=consonants</dt><dd>The total a number roll sets, like consonants, vowels, moras or rare-phonemes. With effect=at-most it sets a ceiling instead.</dd>
     </dl>
     <div class="ed-cols">
@@ -661,10 +685,16 @@ const ADDED_ROWS = [
   ["Morphophonology", "Ablaut", "[do/don't]", "Mark", "grammar with ablaut, a change in a root's vowel", "feature=ablaut; effect=include"],
   ["Rules", "Rule interaction", "", "Include a", "[d4] [feeding/bleeding/counterfeeding/counterbleeding] interaction between two rules", "feature=rule interaction; effect=include"],
   ["Rules", "Chain shift", "", "Include a", "[vowel/consonant] chain shift", "feature=chain shift; effect=include"],
-  // Phase 6: modifier cards, which change a kept card or your next roll instead of the language.
-  ["Modifier", "Re-roll", "", "Re-roll one die on a kept card", "modifier=reroll"],
-  ["Modifier", "Flip", "", "Flip a do or don't on a kept card", "modifier=flip"],
-  ["Modifier", "Free pick", "", "Your next pick is your choice", "modifier=choose"],
+  // Phase 6 modifiers, now power-ups (Phase 7): drawing one gives a token you spend when you choose.
+  ["Power-up", "Re-roll", "", "Re-roll one die, on the card in play or a kept card", "powerup=reroll; copies=2"],
+  ["Power-up", "Flip", "", "Flip a do or don't on a kept card", "powerup=flip; copies=1"],
+  ["Power-up", "Free pick", "", "Choose one list, coin or phoneme pick instead of rolling it", "powerup=choose; copies=3"],
+  // Phase 7: the game layer. Discard, Cleanse and the curses only come up with the game layer on.
+  ["Power-up", "Discard", "", "Discard the card in play", "powerup=discard; copies=4"],
+  ["Power-up", "Cleanse", "", "End one active curse", "powerup=cleanse; copies=2"],
+  ["Curse", "Exact count", "", "Your next 2 ceiling cards become exact counts, so “at most” means exactly", "curse=exact-count; lasts=2; copies=3"],
+  ["Curse", "Long odds", "", "Rarer outcomes come up more often on your next [d6] kept cards", "curse=long-odds; copies=2"],
+  ["Curse", "Multiplier", "", "Multiply number rolls by 1+[d2] on your next [d4] kept cards", "curse=multiplier; copies=2"],
 ].map((r) => r.join("\t")).join("\n");
 const DEFAULT_SOURCE = [LIST_ROWS, CARD_ROWS, PHONEME_ROWS, ADDED_ROWS].join("\n");
 // Fingerprints of earlier built-in lists. A saved copy of one of them is replaced by DEFAULT_SOURCE.
@@ -677,6 +707,7 @@ const LEGACY_DEFAULTS = new Set([
   "51c-1yp6ghk", // Phase 2: named lists, only family= tags
   "66l-pep7tv",  // Phase 3: 72 cards with profile tags
   "86v-1c9dbe5", // Phase 5: 93 cards, Consonant harmony without dice
+  "8cj-8dbjmn",  // Phase 6: 96 cards, modifier cards
 ]);
 function sourceFingerprint(s) {
   let h = 0x811c9dc5;
@@ -1019,12 +1050,14 @@ function catInfo(cat) {
   if (c.includes("vowel")) return { rank: real ? "[V]" : "/V/", mark: "V" };
   if (c.includes("inventory")) return { rank: "/X/", mark: "X" };
   if (c.includes("tone")) return { rank: "T", mark: "T" };
-  if (c.includes("modifier")) return { rank: "±", mark: "±" };
+  if (c.includes("modifier") || c.includes("power")) return { rank: "±", mark: "±" };
+  if (c.includes("curse")) return { rank: "†", mark: "†" };
   const l = (cat.trim()[0] || "?").toUpperCase();
   return { rank: l, mark: l };
 }
 function rankFor(cat) { return catInfo(cat).rank; }
 function suitFor(rank) {
+  if (rank === "†") return "var(--danger)";
   if (rank.includes("ˈ")) return "var(--suit-3)";
   if (rank.includes("C")) return "var(--suit-1)";
   if (rank.includes("V")) return "var(--suit-2)";
@@ -1191,7 +1224,12 @@ function compile(tpl, lists = {}) {
 }
 // The optional last column: key=value pairs separated by semicolons, like "family=consonant-count; counts=consonants".
 const TAG_COLUMN = /^[a-z][\w-]*\s*=\s*[^;=]+(\s*;\s*[a-z][\w-]*\s*=\s*[^;=]+)*\s*;?$/i;
-const KNOWN_TAGS = ["family", "needs", "effect", "counts", "feature", "modifier"];
+const KNOWN_TAGS = ["family", "needs", "effect", "counts", "feature", "powerup", "modifier", "curse", "copies", "lasts"];
+// Power-ups (Phase 7; modifier= is the Phase 6 name for the same tag) and curses.
+const POWERUPS = ["reroll", "flip", "choose", "discard", "cleanse"];
+const CURSES = ["exact-count", "long-odds", "multiplier"];
+// Tags whose value is a whole number, with the smallest allowed.
+const TAG_NUMBERS = { copies: 1, lasts: 1 };
 // Totals a counts= tag can set, with where they show in the profile. "within" totals can't exceed that inventory.
 const COUNTS = {
   consonants: { label: "consonants", area: "size" },
@@ -1223,7 +1261,7 @@ const COUNTS = {
 // counts= can name several totals, comma-separated, for cards with several numbers: the first number sets the first total.
 const countNames = (v) => String(v || "").split(",").map((x) => x.trim()).filter(Boolean);
 // Tags whose value must come from a fixed list. needs= is checked against the card list once it's read.
-const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count", "gap"], counts: Object.keys(COUNTS), modifier: ["reroll", "flip", "choose"] };
+const TAG_VALUES = { effect: ["include", "exclude", "neutralize", "at-most", "symmetric", "count", "gap"], counts: Object.keys(COUNTS), powerup: POWERUPS, modifier: POWERUPS, curse: CURSES };
 // Tags that take a comma-separated list, each item checked against TAG_VALUES.
 const TAG_LISTS = { counts: true };
 const TAG_HELP = {
@@ -1232,7 +1270,11 @@ const TAG_HELP = {
   effect: "How the roll changes the language: include (or rule out on don't), exclude, neutralize, at-most, symmetric, count, or gap (leave one cell of the inventory empty).",
   counts: "Which total a number roll sets. Name several, separated by commas, for a card with several numbers.",
   feature: "What the card is about, for cards with no named list, like feature=pitch accent.",
-  modifier: "Makes this a modifier card, which changes other cards instead of the language: reroll (one die on a kept card), flip (a do or don't on a kept card) or choose (you pick the next option yourself).",
+  powerup: "Makes this a power-up card. Drawing it gives a token you spend when you choose: reroll (one die on the card in play or a kept card), flip (a do or don't on a kept card), choose (pick one option yourself), discard (discard the card in play) or cleanse (end a curse).",
+  modifier: "The Phase 6 name for powerup=. It works the same way.",
+  curse: "Makes this a curse card: exact-count (ceiling cards become exact counts), long-odds (rarer outcomes come up more often) or multiplier (number rolls are multiplied). It lasts for a number of kept cards.",
+  copies: "How many copies of this card go in the pile, like copies=3.",
+  lasts: "How many kept cards a curse lasts, for a curse card with no die to roll for it. Exact count counts only the ceiling cards it changes.",
 };
 function parseTags(col) {
   const out = {};
@@ -1247,6 +1289,7 @@ function tagIssues(tags) {
   const out = {};
   for (const [k, v] of Object.entries(tags)) {
     if (!KNOWN_TAGS.includes(k)) out[k] = `Unknown tag “${k}”. Known tags: ${KNOWN_TAGS.join(", ")}.`;
+    else if (k in TAG_NUMBERS) { if (!/^\d+$/.test(v) || +v < TAG_NUMBERS[k]) out[k] = `${k}=${v} should be a whole number, ${TAG_NUMBERS[k]} or more.`; }
     else if (TAG_VALUES[k]) {
       const bad = (TAG_LISTS[k] ? countNames(v) : [v]).filter((x) => !TAG_VALUES[k].includes(x));
       if (bad.length) out[k] = `${k}=${bad.join(", ")} ${bad.length === 1 ? "isn’t a known " + k : "aren’t known " + k}. Use one of: ${TAG_VALUES[k].join(", ")}.`;
@@ -1290,9 +1333,13 @@ function parseLibrary(src) {
     card.tags = tags;
     card.tagIssues = tagIssues(tags);
     card.family = tags.family || null;
-    card.modifier = TAG_VALUES.modifier.includes(tags.modifier) ? tags.modifier : null;
-    // A modifier card has nothing of its own to roll, so that warning doesn't apply.
-    if (card.modifier && !card.slots.length) card.warnings = card.warnings.filter((w) => !/^No dice/.test(w));
+    // card.modifier is the power-up kind (powerup=, or modifier= from Phase 6). card.curse is the curse kind.
+    const pu = tags.powerup || tags.modifier;
+    card.modifier = POWERUPS.includes(pu) ? pu : null;
+    card.curse = !card.modifier && CURSES.includes(tags.curse) ? tags.curse : null;
+    card.copies = /^\d+$/.test(tags.copies || "") && +tags.copies >= 1 ? Math.min(+tags.copies, 20) : 1;
+    // Power-up and curse cards may have nothing of their own to roll, so that warning doesn't apply.
+    if ((card.modifier || card.curse) && !card.slots.length) card.warnings = card.warnings.filter((w) => !/^No dice/.test(w));
     card.warnings.push(...Object.values(card.tagIssues));
     card.category = category || "Uncategorized";
     card.name = name || "Untitled";
@@ -1393,22 +1440,25 @@ function ruleText(card, values) { return joinVisible(card, values, (x) => x).tex
 function ruleHTMLDone(card, values) { return joinVisible(card, values, (x) => `<em>${x}</em>`).html; }
 function rollSummary(card, values) {
   return card.slots.map((s, i) => {
-    const v = values[i];
-    if (!v || v.skipped) return `${dieName(s)} skipped`;
-    if (v.forced) return `${dieName(s)} → ${v.label} (no roll, the only one that fits)`;
-    if (v.flipped) return `coin → ${v.label} (flipped by ${v.flipped})`;
-    if (v.chosen) return `${s.kind === "pool" ? "hand" : dieName(s)} → ${s.kind === "pool" ? "/" + v.sym + "/" : v.label} (chosen, not rolled)`;
-    // "d12 as d9": the die shrank because some values clashed with the deck.
-    const die = v.of && v.of < s.sides ? `${dieName(s)} as d${v.of}` : dieName(s);
-    if (s.kind === "number") return isModified(s) ? `${die} → ${v.label} (rolled ${v.n})` : `${die} → ${v.n}`;
-    if (s.kind === "choice") return `coin → ${v.label}`;
-    if (s.kind === "pool") {
-      if (!v.sym) return `${s.spec}: none left`;
-      const p = phonemeInfo(v.sym);
-      return `d${v.of} → ${v.n} · /${v.sym}/${p ? ` · ${fmtPct(p.pct)} of languages` : ""}`;
-    }
-    return `${die} → ${v.roll || v.n} · ${v.label}`;
+    const v = values[i], r = rollLine(s, v);
+    return r + (v && v.odds ? ` (long odds: ${v.odds[0]} or ${v.odds[1]})` : "") + (v && v.rerolled ? " (re-rolled)" : "");
   });
+}
+function rollLine(s, v) {
+  if (!v || v.skipped) return `${dieName(s)} skipped`;
+  if (v.forced) return `${dieName(s)} → ${v.label} (no roll, the only one that fits)`;
+  if (v.flipped) return `coin → ${v.label} (flipped by ${v.flipped})`;
+  if (v.chosen) return `${s.kind === "pool" ? "hand" : dieName(s)} → ${s.kind === "pool" ? "/" + v.sym + "/" : v.label} (chosen, not rolled)`;
+  // "d12 as d9": the die shrank because some values clashed with the deck.
+  const die = v.of && v.of < s.sides ? `${dieName(s)} as d${v.of}` : dieName(s);
+  if (s.kind === "number") return isModified(s) ? `${die} → ${v.label} (rolled ${v.n})` : `${die} → ${v.n}`;
+  if (s.kind === "choice") return `coin → ${v.label}`;
+  if (s.kind === "pool") {
+    if (!v.sym) return `${s.spec}: none left`;
+    const p = phonemeInfo(v.sym);
+    return `d${v.of} → ${v.n} · /${v.sym}/${p ? ` · ${fmtPct(p.pct)} of languages` : ""}`;
+  }
+  return `${die} → ${v.roll || v.n} · ${v.label}`;
 }
 // What one roll landed on, with the named list and feature type behind it. Deck entries store these as
 // entry.rolled, so the profile doesn't have to re-read the card text. A slot not rolled yet is "pending".
@@ -1875,7 +1925,7 @@ function profileBase(entries, cardFor, universe) {
   const writes = [], taken = new Set();
   let untracked = 0;
   for (const e of entries) {
-    const card = cardFor(e.cardId);
+    const card = entryCard(e, cardFor);
     const tags = (card && card.name === e.name ? card.tags : e.tags) || {};
     const src = { id: e.id, name: e.name };
     if (Array.isArray(e.rolled)) writes.push(...cardWrites(tags, e.rolled, src));
@@ -1938,12 +1988,9 @@ function slotChoices(card, values, i, base) {
 }
 // Why a card can't be in the pile right now, or null. families maps a family to the kept card that holds it.
 // deck (the kept entries) and cardFor let a modifier card check that it has a kept card to act on.
-function blockReason(card, base, families, deck, cardFor) {
-  if (card.modifier) {
-    if (card.modifier === "choose" || !deck) return null;
-    return modTargets(card.modifier, deck, cardFor, base.universe, true).length ? null
-      : { kind: "target", text: card.modifier === "flip" ? "No kept card has a do or don't that can flip without a clash." : "No kept card has a die that can land on something else." };
-  }
+// Power-up and curse cards are never set aside: a token can wait until there's something to use it on.
+function blockReason(card, base, families) {
+  if (card.modifier || card.curse) return null;
   if (card.family && families.has(card.family)) return { kind: "family", text: `Only one card of its family fits in a deck, and “${families.get(card.family)}” is there.` };
   if (card.tags.needs) {
     const missing = needsTerms(card.tags.needs).filter((t) => !hasTerm(base.prof, t));
@@ -1957,10 +2004,20 @@ function blockReason(card, base, families, deck, cardFor) {
 function shapeWarnings(card) {
   const t = card.tags, out = [];
   if (card.modifier) {
-    if (card.slots.length) out.push("A modifier card acts on other cards, so its own dice are never rolled.");
-    if (t.effect || t.counts || t.feature || t.needs) out.push("A modifier card doesn't write to the language profile, so effect, counts, feature and needs are ignored.");
+    if (card.slots.length) out.push("A power-up card gives a token, so its own dice are never rolled.");
+    if (t.effect || t.counts || t.feature || t.needs) out.push("A power-up card doesn't write to the language profile, so effect, counts, feature and needs are ignored.");
+    if (t.curse) out.push("A card can't be both a power-up and a curse, so curse= is ignored.");
+    if (t.lasts) out.push("lasts= is for curse cards, so it's ignored here.");
     return out;
   }
+  if (card.curse) {
+    if (t.effect || t.counts || t.feature || t.needs) out.push("A curse card doesn't write to the language profile, so effect, counts, feature and needs are ignored.");
+    const nums = card.slots.filter((s) => s.kind === "number").length;
+    if (card.curse === "multiplier" && !nums) out.push("A multiplier curse needs a number to roll for the multiplier, like 1+[d2].");
+    if (!t.lasts && nums < (card.curse === "multiplier" ? 2 : 1)) out.push(`Nothing says how long this curse lasts, so it lasts ${CURSE_LASTS[card.curse]} kept cards. Roll for it with a die, or add lasts=N.`);
+    return out;
+  }
+  if (t.lasts) out.push("lasts= is for curse cards, so it's ignored here.");
   if (!t.effect && !t.counts) return out;
   const nums = card.slots.filter((s) => s.kind === "number").length;
   const named = card.slots.some((s) => s.list), inline = card.slots.some((s) => s.options && !s.list && !s.options.every(isPolar));
@@ -1973,16 +2030,11 @@ function shapeWarnings(card) {
   return out;
 }
 
-/* ---------- Modifier cards ----------
-   A modifier card changes a kept card instead of the language. modifier=reroll rolls one die on a kept card
-   again, modifier=flip turns a kept card's do into don't (or back), and modifier=choose lets you choose the
-   next option yourself instead of rolling for it. A change is checked against the deck without the card being
-   changed, so it can't add a clash, and slots whose (If …) depends on the changed one are rolled again. */
-const MODIFIER_HELP = {
-  reroll: "rolls one die on a kept card again",
-  flip: "flips a do or don't on a kept card",
-  choose: "lets you choose your next pick instead of rolling it",
-};
+/* ---------- Changing kept cards ----------
+   Re-roll and Flip power-up tokens (Phase 6 modifier cards, tokens since Phase 7) change a kept card instead of
+   the language: reroll rolls one die on it again, flip turns its do into don't (or back). A change is checked
+   against the deck without the card being changed, so it can't add a clash, and slots whose (If …) depends on
+   the changed one are rolled again. */
 // The values a kept entry was rolled with, read back from entry.rolled so the card can be changed.
 // null when the entry no longer matches the card (an older card list, or kept before rolls were recorded).
 function valuesFromEntry(card, entry) {
@@ -2049,8 +2101,8 @@ function modTargets(kind, deck, cardFor, universe, first) {
   const out = [];
   const order = deck.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   for (const entry of order) {
-    const card = cardFor(entry.cardId);
-    const values = card && !card.modifier ? valuesFromEntry(card, entry) : null;
+    const card = entryCard(entry, cardFor);
+    const values = card && !card.modifier && !card.curse ? valuesFromEntry(card, entry) : null;
     if (!values || !card.slots.length) continue;
     // Cheap test first: a flip needs a do or don't.
     if (kind === "flip" && !card.slots.some((s, i) => isPolarSlot(s) && values[i] && !values[i].skipped)) continue;
@@ -2080,6 +2132,119 @@ function changedEntry(old, card, values, changed, by) {
   if (syms.length) out.phonemes = syms; else delete out.phonemes;
   if (Object.keys(card.tags).length) out.tags = card.tags;
   return out;
+}
+
+/* ---------- Pile copies ----------
+   A card with copies=N is in the pile N times. Copy 1 keeps the card id, so piles saved before Phase 7 still
+   work; the others are "c93-re-roll#2" and so on. */
+const baseIdOf = (pid) => String(pid).split("#")[0];
+const copyIds = (card) => Array.from({ length: card.copies || 1 }, (_, k) => (k ? `${card.id}#${k + 1}` : card.id));
+// Cards that only come up with the game layer on: Discard, Cleanse and every curse.
+const gameOnly = (card) => !!card.curse || card.modifier === "discard" || card.modifier === "cleanse";
+
+/* ---------- Curses ----------
+   A curse card, once taken, changes the cards you draw for a number of kept cards. Curses never make the
+   language easier. exact-count turns ceiling cards (effect=at-most) into exact counts, multiplier raises the
+   mult of number rolls (but skips ceiling cards, where a bigger number would loosen the limit), and long-odds
+   deals phoneme hands from the rarest band first and rolls list picks twice, keeping the rarer option.
+   A card drawn under a curse is a cursed copy of the card (cursedCard, with card.cursedBy listing the curses;
+   card.curse is only set on curse cards themselves). Its kept entry stores entry.curse, so
+   the profile, Re-roll and Flip rebuild the same cursed card later: cursed cards stay cursed. */
+const CURSE_LASTS = { "exact-count": 2, "long-odds": 3, multiplier: 3 };
+const CURSE_HELP = {
+  "exact-count": "turns ceiling cards into exact counts: “at most 3” becomes “exactly 3”",
+  "long-odds": "makes rarer outcomes come up more often: phoneme hands are dealt from the rarest first, and list picks are rolled twice, keeping the rarer",
+  multiplier: "multiplies number rolls, except on ceiling cards",
+};
+const curseUnit = (kind, n) => (kind === "exact-count" ? (n === 1 ? "ceiling card" : "ceiling cards") : n === 1 ? "kept card" : "kept cards");
+// The active curse a curse card makes, from its rolls. The multiplier is the first number; how long it lasts
+// is lasts= or the last number.
+function curseFrom(card, values) {
+  const nums = card.slots.map((s, i) => (s.kind === "number" && values[i] && !values[i].skipped ? Number(values[i].label) : null)).filter((n) => n != null);
+  const k = { kind: card.curse, name: card.name };
+  if (card.curse === "multiplier") k.factor = Math.max(1, nums.length ? nums[0] : 2);
+  const lastsNums = card.curse === "multiplier" ? nums.slice(1) : nums;
+  k.left = card.tags.lasts && /^\d+$/.test(card.tags.lasts) ? +card.tags.lasts : lastsNums.length ? lastsNums[lastsNums.length - 1] : CURSE_LASTS[card.curse];
+  k.left = Math.max(1, k.left);
+  return k;
+}
+// "Multiplier ×2" or "Exact count".
+const curseLabel = (k) => k.name + (k.kind === "multiplier" && k.factor ? ` ×${k.factor}` : "");
+const isCeiling = (card) => card.tags.effect === "at-most";
+// Frequency of a list option: the share of languages with the most common phoneme that has it (PHOIBLE).
+// It's a lower bound on how many languages have the feature at all, which is enough to say which is rarer.
+let keyFreqMap = null;
+function keyFreq(key) {
+  if (!keyFreqMap) {
+    keyFreqMap = new Map();
+    for (const p of phonemes()) for (const w of phonemeWrites(p.sym, {})) if (w.key) keyFreqMap.set(w.key, Math.max(keyFreqMap.get(w.key) || 0, p.pct));
+  }
+  return keyFreqMap.has(key) ? keyFreqMap.get(key) : null;
+}
+function optionFreq(slot, label) {
+  if (!slot.list) return null;
+  return keyFreq((LIST_AREA[slot.list] || slot.list) + ":" + normTerm(label));
+}
+// Long odds can act on a phoneme pool, or on a pick over a named list where at least two options have a frequency.
+function oddsSlot(slot) {
+  if (slot.kind === "pool") return true;
+  return slot.kind === "pick" && !!slot.list && slot.options.filter((o) => optionFreq(slot, o) != null).length >= 2;
+}
+// The curses that would change this card, from the active ones. Power-up and curse cards are never cursed.
+function cursesFor(card, active) {
+  if (!card || card.modifier || card.curse || !active || !active.length) return [];
+  const out = [];
+  for (const k of active) {
+    const hit = k.kind === "exact-count" ? isCeiling(card)
+      : k.kind === "multiplier" ? !isCeiling(card) && card.slots.some((s) => s.kind === "number") && (k.factor || 1) > 1
+      : k.kind === "long-odds" ? card.slots.some(oddsSlot) : false;
+    if (hit) out.push(k.kind === "multiplier" ? { kind: k.kind, name: k.name, factor: k.factor } : { kind: k.kind, name: k.name });
+  }
+  return out;
+}
+// Exact count's wording: each rule rewrites one stretch of card text; the first that matches wins.
+const EXACT_WORDING = [
+  [/^allow at most\b/i, "Include exactly"],
+  [/\bcap the (\w+) at$/i, "make the largest $1 exactly"],
+  [/^and the (\w+) at$/i, "and the largest $1 exactly"],
+  [/\bat most\b/i, "exactly"],
+  [/\bup to\b/i, "exactly"],
+];
+const cursedCache = new WeakMap();
+// The card as a curse changes it. The same card and curses give the same object, so checks can be cached.
+function cursedCard(card, curse) {
+  if (!card || !Array.isArray(curse) || !curse.length) return card;
+  const key = JSON.stringify(curse);
+  let byKey = cursedCache.get(card);
+  if (!byKey) cursedCache.set(card, (byKey = new Map()));
+  if (byKey.has(key)) return byKey.get(key);
+  const c = { ...card, parts: card.parts.map((p) => ({ ...p })), slots: card.slots.map((sl) => ({ ...sl })), tags: { ...card.tags }, cursedBy: curse };
+  for (const k of curse) {
+    if (k.kind === "exact-count") {
+      c.tags.effect = "count";
+      let hit = false;
+      for (const p of c.parts) {
+        if (p.t !== "text") continue;
+        const rule = EXACT_WORDING.find(([re]) => re.test(p.s));
+        if (rule) { p.s = p.s.replace(rule[0], rule[1]); hit = true; }
+      }
+      if (!hit) c.parts.unshift({ t: "text", s: "Exactly:", sp: false, cond: null, condRaw: null });
+    } else if (k.kind === "multiplier") {
+      for (const sl of c.slots) if (sl.kind === "number") sl.mult = (sl.mult || 1) * (k.factor || 1);
+    } else if (k.kind === "long-odds") c.longOdds = true;
+  }
+  byKey.set(key, c);
+  return c;
+}
+// The card behind a kept entry, cursed the way it was when it was kept.
+function entryCard(e, cardFor) {
+  const card = cardFor(e.cardId);
+  return card && Array.isArray(e.curse) && e.curse.length ? cursedCard(card, e.curse) : card;
+}
+// Long odds on a phoneme hand: the rarest phonemes first, shuffled within each band.
+function rarestFirst(cands) {
+  const band = (c) => { const p = phonemeInfo(c.sym); return p ? ["rare", "uncommon", "common"].indexOf(p.band) : 3; };
+  return [0, 1, 2, 3].flatMap((b) => shuffle(cands.filter((c) => band(c) === b)));
 }
 
 /* ---------- Dice ---------- */
@@ -2253,21 +2418,34 @@ const state = {
   pile: ls.get("pc.pile", null),
   lists: {},
   byId: new Map(),
-  aside: ls.get("pc.aside", []), // card ids kept out of the pile: their family is taken, their prerequisite is missing, or no roll fits
-  asideWhy: new Map(), // card id -> { kind, text }
+  aside: ls.get("pc.aside", []), // pile ids kept out of the pile: their family is taken, their prerequisite is missing, or no roll fits
+  asideWhy: new Map(), // pile id -> { kind, text }
   deck: ls.get("pc.deck", []),
   profile: null, // the deck as a language profile (profileBase); rebuilt whenever the deck or card list changes
-  current: null, // { card, values: [], idx, hands, allowed, mod?, base? }; mod is set while a modifier card is in play
-  used: ls.get("pc.used", []), // modifier cards already used; they stay out of the pile until it's reshuffled
-  freePick: ls.get("pc.free", 0), // Free pick tokens: the next option roll is chosen instead
+  // { card, pid, values: [], idx, hands, allowed, mod?, base?, powerup?, choosing?, rrPick? }. pid is the pile id it
+  // was drawn as; card is the cursed copy when a curse changed it. mod is set while a token changes a kept card.
+  current: null,
+  used: ls.get("pc.used", []), // power-up and curse cards already taken; they stay out of the pile until it's reshuffled
+  game: ls.get("pc.game", true) !== false, // the game layer: curses, Discard and Cleanse cards, paid discards, the token cap
+  tokens: ls.get("pc.tokens", null), // power-up tokens held: [{ id, kind, name, cardId }]
+  curses: ls.get("pc.curses", []), // active curses: [{ kind, name, left, factor? }]
+  tokenSub: null, // a token waiting for a choice in the token panel: { kind: "cleanse" | "reroll", tokenId }
 
   dice: [],
   busy: false,
 };
 const store = { mode: "local", db: null, base: null, migrated: false };
 
-// The id of the card drawn from the pile: the modifier card while one is changing a kept card.
-const inPlayId = () => (state.current ? (state.current.mod ? state.current.mod.cardId : state.current.card.id) : null);
+// The pile id of the card in play, or null (a token changing a kept card wasn't drawn from the pile).
+const inPlayId = () => (state.current && !state.current.mod ? state.current.pid || state.current.card.id : state.current && state.current.mod && state.current.mod.legacyPid) || null;
+const TOKEN_CAP = 3;
+const tokenCap = () => (state.game ? TOKEN_CAP : Infinity);
+// Every pile id of the card list that's in play with the current setting.
+const allPileIds = () => state.library.flatMap(copyIds);
+const gamePileIds = () => state.library.filter((c) => state.game || !gameOnly(c)).flatMap(copyIds);
+const cardOfPid = (pid) => state.byId.get(baseIdOf(pid));
+// The card as it would be drawn now: cursed by the active curses that change it.
+const asDrawn = (card) => (state.game ? cursedCard(card, cursesFor(card, state.curses)) : card);
 // What the card in play is checked against: the deck, or the deck without the kept card a modifier is changing.
 const baseFor = (c) => (c && c.base) || state.profile;
 function applySource(src, { reshuffle } = { reshuffle: true }) {
@@ -2277,33 +2455,36 @@ function applySource(src, { reshuffle } = { reshuffle: true }) {
   state.lists = lib.lists;
   state.byId = new Map(lib.cards.map((c) => [c.id, c]));
   rebuildProfile();
-  const ids = new Set(state.library.map((c) => c.id));
+  const ids = new Set(allPileIds());
   if (reshuffle || !Array.isArray(state.pile) || state.pile.some((id) => !ids.has(id))) reshufflePile(false);
   else addNewCards();
   refreshProfile();
 }
-// Cards added to the list since the pile was dealt (like new built-in cards) are shuffled into the pile.
+// Cards (and copies) added to the list since the pile was dealt, like new built-in cards, are shuffled into the pile.
+// Game-only cards are noted but left out while the game layer is off; turning it on adds them (setGame).
 function addNewCards() {
   let known = ls.get("pc.known", null);
   if (!Array.isArray(known)) {
     const inPlay = ls.get("pc.inplay", null);
-    known = state.pile.concat(state.aside, state.used, state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.mod ? inPlay.mod.cardId : inPlay.id] : []);
+    known = state.pile.concat(state.aside, state.used, state.deck.map((e) => e.cardId), inPlay && inPlay.id ? [inPlay.pid || (inPlay.mod ? inPlay.mod.cardId : inPlay.id)] : []);
   }
   const seen = new Set(known);
-  for (const c of state.library) {
-    if (seen.has(c.id)) continue;
-    state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, c.id);
+  for (const id of allPileIds()) {
+    if (seen.has(id)) continue;
+    const card = cardOfPid(id);
+    if (!state.game && gameOnly(card)) continue;
+    state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, id);
   }
   ls.set("pc.pile", state.pile);
-  ls.set("pc.known", state.library.map((c) => c.id));
+  ls.set("pc.known", allPileIds());
 }
 function reshufflePile(announce = true) {
   const inPlay = inPlayId();
-  state.pile = shuffle(state.library.map((c) => c.id).filter((id) => id !== inPlay));
+  state.pile = shuffle(gamePileIds().filter((id) => id !== inPlay));
   state.aside = [];
   state.used = []; ls.set("pc.used", []);
   ls.set("pc.pile", state.pile);
-  ls.set("pc.known", state.library.map((c) => c.id));
+  ls.set("pc.known", allPileIds());
   syncPile();
   renderPile();
   renderProfile();
@@ -2337,11 +2518,14 @@ function rebuildProfile() {
 }
 function syncPile() {
   if (!deckReady || !Array.isArray(state.pile) || !state.profile) return { moved: [], back: [] };
-  const ids = new Set(state.library.map((c) => c.id)), fams = familyHolders();
-  const why = new Map();
+  const ids = new Set(gamePileIds()), fams = familyHolders();
+  const why = new Map(), byCard = new Map();
   for (const id of new Set(state.pile.concat(state.aside))) {
-    const card = state.byId.get(id);
-    const r = card && blockReason(card, state.profile, fams, state.deck, cardById);
+    const base = cardOfPid(id);
+    if (!base) continue;
+    // Copies share a card, so each card is checked once. While a curse is active, a card is judged as cursed.
+    if (!byCard.has(base.id)) byCard.set(base.id, blockFor(base, fams));
+    const r = byCard.get(base.id);
     if (r) why.set(id, r);
   }
   state.asideWhy = why;
@@ -2356,6 +2540,15 @@ function syncPile() {
   renderPile();
   return { moved, back };
 }
+// Why a card can't be drawn now. A card that fits plain but not under the active curses says which curse.
+function blockFor(card, fams) {
+  const drawn = asDrawn(card);
+  const r = blockReason(drawn, state.profile, fams);
+  if (!r || drawn === card || r.kind !== "clash") return r;
+  if (blockReason(card, state.profile, fams)) return r;
+  const names = drawn.cursedBy.map(curseLabel).join(" and ");
+  return { kind: "curse", text: `While ${names} ${drawn.cursedBy.length === 1 ? "is" : "are"} active, no roll fits your deck. ${r.text.replace(/^No roll fits your deck\. /, "")} It comes back when the curse ends.` };
+}
 // Rebuilds the profile and everything that reads it: the pile, the profile panel and the card in play.
 function refreshProfile() {
   rebuildProfile();
@@ -2363,9 +2556,16 @@ function refreshProfile() {
   renderProfile();
   refreshInPlay();
   refreshMod();
+  renderTokens();
 }
-const cardName = (id) => { const c = state.byId.get(id); return c ? c.name : id; };
-const listNames = (ids) => ids.map(cardName).join(", ");
+const cardName = (id) => { const c = cardOfPid(id); return c ? c.name : id; };
+// "Re-roll ×2, Flip": names of pile ids, with copies counted.
+function nameCounts(ids) {
+  const m = new Map();
+  for (const id of ids) { const n = cardName(id); m.set(n, (m.get(n) || 0) + 1); }
+  return [...m].map(([n, k]) => (k > 1 ? `${n} ×${k}` : n));
+}
+const listNames = (ids) => nameCounts(ids).join(", ");
 
 /* ---------- Pile ---------- */
 function backHTML() {
@@ -2381,9 +2581,9 @@ function renderPile() {
   pile.setAttribute("aria-label", inPlay ? "Finish the card in play before drawing" : n ? `Draw a card, ${n} left` : "Pile empty");
   const aside = state.aside.length;
   const asideNote = aside ? ` · <button type="button" class="linkish" id="asideBtn" title="${esc("Set aside: " + listNames(state.aside))}">${aside} set aside</button>` : "";
-  const used = state.used.length ? ` · <span title="${esc("Used until you reshuffle: " + listNames(state.used))}">${state.used.length} used</span>` : "";
-  const free = state.freePick ? `<span class="free">${state.freePick > 1 ? `Your next ${state.freePick} picks are` : "Your next pick is"} your choice.</span>` : "";
-  $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${state.library.length}`) + asideNote + used + free;
+  const used = state.used.length ? ` · <span title="${esc("Taken until you reshuffle: " + listNames(state.used))}">${state.used.length} taken</span>` : "";
+  $("pileCount").innerHTML = (inPlay ? `<strong>${n}</strong> left · finish this card first` : `<strong>${n}</strong> left of ${gamePileIds().length}`) + asideNote + used;
+  renderTokens();
 }
 
 /* ---------- Card in play ---------- */
@@ -2397,6 +2597,7 @@ function cardHTML(card) {
         <div class="watermark" aria-hidden="true">${esc(card.mark || card.rank)}</div>
         <p class="cat">${esc(card.category)}</p>
         <h3 class="name">${esc(card.name)}</h3>
+        ${card.cursedBy ? `<p class="cursed">Cursed by ${esc(card.cursedBy.map(curseLabel).join(" and "))}</p>` : ""}
         <p class="rule" id="rule"></p>
       </div>
       <div class="face back" aria-hidden="true">${backHTML()}</div>
@@ -2428,49 +2629,69 @@ function renderCurrent(animateFrom) {
   }
 }
 function updateRule() {
-  const c = state.current; if (!c) return;
+  const c = state.current; if (!c) { renderTokens(); return; }
   const rule = document.getElementById("rule");
   if (rule) rule.innerHTML = ruleHTML(c.card, c.values, c.idx);
   const done = c.card.slots.filter((_, i) => c.values[i]).length, total = c.card.slots.length;
   const m = c.mod, changing = m && m.step === "change";
-  const complete = m ? (changing ? c.idx === -1 : m.kind === "choose") : c.idx === -1;
-  $("progress").textContent = m && !changing ? (m.kind === "choose" ? "Nothing to roll" : m.step === "slot" ? "Pick a die" : "Pick a kept card")
-    : complete ? "All blanks filled" : `${done} of ${total} rolled`;
-  $("keepBtn").disabled = !complete;
-  $("keepBtn").textContent = changing ? "Save change" : m && m.kind === "choose" ? "Use card" : "Keep card";
-  $("discardBtn").hidden = !!changing; // a change under way can't be undone by discarding
+  const complete = c.powerup ? true : m ? changing && c.idx === -1 : c.idx === -1;
+  $("progress").textContent = c.powerup ? "Nothing to roll" : m && !changing ? (m.step === "slot" ? "Pick a die" : "Pick a kept card")
+    : complete ? (total ? "All blanks filled" : "Nothing to roll") : `${done} of ${total} rolled`;
+  const keepBtn = $("keepBtn");
+  keepBtn.disabled = !complete || (c.powerup && atCap());
+  keepBtn.textContent = m ? "Save change" : c.powerup ? "Take token" : c.card.curse ? "Take curse" : "Keep card";
+  // Discard: free with the game layer off, a Discard token with it on. A token's change can be cancelled until it starts.
+  const disc = $("discardBtn");
+  disc.hidden = !!changing || !!c.powerup;
+  const paid = state.game && !m, can = m ? true : !paid || hasToken("discard");
+  disc.textContent = m ? "Cancel" : paid && can ? "Discard (1 token)" : "Discard";
+  disc.setAttribute("aria-disabled", String(!can));
+  disc.title = m ? "Put the token back without using it." : paid ? (can ? "Spends a Discard token." : "Discarding costs a Discard token, and you don't have one.") : "";
   const card = $("cardSlot").querySelector(".card");
-  if (card) card.classList.toggle("complete", complete);
+  if (card) card.classList.toggle("complete", complete && !c.powerup);
   if (m && m.step === "slot" && c.target && rule) {
     for (const sl of c.target.slots) { const el = rule.querySelector(`.slot[data-i="${sl.i}"]`); if (el) { el.classList.add("pickable"); el.title = "Re-roll this die"; } }
   }
-  // Values the deck decided, with the reason, and values a modifier set.
+  if (c.rrPick && rule) {
+    for (const i of rerollSlotsInPlay(c)) { const el = rule.querySelector(`.slot[data-i="${i}"]`); if (el) { el.classList.add("pickable"); el.title = "Re-roll this die"; } }
+  }
+  // Values the deck decided, with the reason, values a token set, and what a curse changed.
   const was = changing ? (state.deck.find((e) => e.id === m.entryId) || {}).text : null;
-  const notes = (changing ? `<li>Changing your kept “${esc(c.card.name)}” with “${esc(m.name)}”.${was ? ` It said: ${esc(was)}` : ""}</li>` : "") + c.card.slots.map((s, i) => {
+  const cursed = c.card.cursedBy ? `<li>Cursed by ${c.card.cursedBy.map((k) => `<b>${esc(curseLabel(k))}</b>`).join(" and ")}: ${esc(c.card.cursedBy.map(curseEffect).join("; "))}.</li>` : "";
+  const notes = (changing ? `<li>Changing your kept “${esc(c.card.name)}” with “${esc(m.name)}”.${was ? ` It said: ${esc(was)}` : ""}</li>` : "") + cursed + c.card.slots.map((s, i) => {
     const v = c.values[i];
-    if (!v) return "";
+    if (!v) return c.lo && c.lo.i === i ? `<li>Long odds: the first roll was <b>${esc(c.lo.label)}</b>. Roll again; the rarer of the two goes on the card.</li>` : "";
     if (v.forced) return `<li>Set to <b>${esc(v.label)}</b> without a roll. ${esc(v.forced)}</li>`;
     if (v.flipped) return `<li>Flipped to <b>${esc(v.label)}</b> by “${esc(v.flipped)}”.</li>`;
     if (v.chosen) return `<li>You chose <b>${esc(v.label)}</b> with Free pick.</li>`;
+    if (v.odds) return `<li>Long odds: rolled <b>${esc(v.odds[0])}</b> and <b>${esc(v.odds[1])}</b>, and kept the rarer.${v.rerolled ? " This die was re-rolled." : ""}</li>`;
+    if (v.rerolled) return `<li>Re-rolled to <b>${esc(v.label)}</b> with a Re-roll token.</li>`;
     return "";
   }).join("");
   $("cardNotes").innerHTML = notes;
   $("cardNotes").hidden = !notes;
+  renderTokens();
+}
+// What a curse does to a card, for the notes under it.
+function curseEffect(k) {
+  return k.kind === "exact-count" ? "its limit is an exact count" : k.kind === "multiplier" ? `number rolls are multiplied by ${k.factor}` : "rarer outcomes come up more often";
 }
 
 function draw() {
   if (state.current || state.busy) return;
   if (!state.pile.length) { toast("The pile is empty. Reshuffle to draw again."); return; }
-  const id = state.pile.shift(); ls.set("pc.pile", state.pile);
-  const card = state.library.find((x) => x.id === id);
-  if (!card) { reshufflePile(false); return draw(); }
-  state.current = card.modifier ? modInPlay(card) : { card, values: [], idx: -1, hands: {} };
+  const pid = state.pile.shift(); ls.set("pc.pile", state.pile);
+  const base = cardOfPid(pid);
+  if (!base) { reshufflePile(false); return draw(); }
+  // A card drawn while a curse is active is the cursed copy, and stays that way.
+  state.current = { card: asDrawn(base), pid, values: [], idx: -1, hands: {}, ...(base.modifier ? { powerup: true } : {}) };
+  state.tokenSub = null;
   saveInPlay();
   const topBack = $("pile").querySelector(".back-layer:nth-child(3)");
   renderCurrent(topBack);
   if (topBack) topBack.innerHTML = backHTML();
   renderPile();
-  if (card.modifier) setTrayForMod(true); else advance(true);
+  if (base.modifier) setTrayForPowerup(true); else advance(true);
 }
 function advance(first) {
   const c = state.current;
@@ -2485,7 +2706,8 @@ function advance(first) {
         // Only phonemes that fit the deck are dealt, and none it already has.
         const fit = slotChoices(c.card, c.values, i, baseFor(c)).ok;
         c.fit = { ...(c.fit || {}), [i]: fit.length };
-        c.hands[i] = shuffle(fit).slice(0, HAND_MAX).map((x) => x.sym);
+        // Long odds deals from the rarest phonemes first.
+        c.hands[i] = shuffle((c.card.longOdds ? rarestFirst(fit) : shuffle(fit)).slice(0, HAND_MAX)).map((x) => x.sym);
       }
       if (!c.hands[i].length) { c.values[i] = { n: 0, of: 0, sym: null, label: "no phoneme (none left in this pool fits your deck)" }; continue; }
     } else {
@@ -2520,10 +2742,14 @@ function liveSlot(c, i) {
     return { ...slot, kind: "pick", pool: true, sides: Math.max(1, hand.length), options: hand, fit: c.fit && c.fit[i] };
   }
   const st = c.allowed && c.allowed[i];
-  if (!st || !st.crossed.length) return slot;
-  const live = { ...slot, origSides: slot.sides, crossed: st.crossed, open: st.ok, sides: st.ok.length };
-  if (slot.kind === "number") live.faces = st.ok.map((x) => x.n);
-  else { live.options = st.ok.map((x) => x.label); live.map = st.ok.map((x) => x.n); live.allOptions = slot.options; }
+  let live = slot;
+  if (st && st.crossed.length) {
+    live = { ...slot, origSides: slot.sides, crossed: st.crossed, open: st.ok, sides: st.ok.length };
+    if (slot.kind === "number") live.faces = st.ok.map((x) => x.n);
+    else { live.options = st.ok.map((x) => x.label); live.map = st.ok.map((x) => x.n); live.allOptions = slot.options; }
+  }
+  // Long odds on a list pick: roll twice and keep the rarer, when at least two open options have a frequency.
+  if (c.card.longOdds && slot.kind === "pick" && slot.list && live.options.filter((o) => optionFreq(slot, o) != null).length >= 2) live = { ...live, longOdds: true };
   return live;
 }
 // After the deck changes, re-check the blank waiting for a roll. If its open values changed, set it up again.
@@ -2546,13 +2772,142 @@ function takenPhonemes(c) {
   return out;
 }
 
-/* ---------- Modifier in play ----------
-   A modifier card goes through steps in state.current.mod: "target" (pick a kept card), "slot" (pick which
-   die, when a re-roll has a choice), then "change": the kept card is back in play with the changed slots
-   cleared, rolled like any card against the deck without it, and saved over the old entry. Free pick has no
-   steps; using it adds a token (state.freePick) that the next option roll spends. */
-function modInPlay(card) {
-  return { card, values: [], idx: -1, hands: {}, mod: { kind: card.modifier, cardId: card.id, name: card.name, step: "target" } };
+/* ---------- Power-ups and curses in play ----------
+   Drawing a power-up card gives a token (state.tokens), held until you spend it; with the game layer on you
+   hold at most TOKEN_CAP. Re-roll on the card in play clears one die and rolls it again. Re-roll and Flip on a
+   kept card go through steps in state.current.mod: "target" (pick a kept card), "slot" (pick which die, when a
+   re-roll has a choice), then "change": the kept card is back in play with the changed slots cleared, rolled
+   against the deck without it, and saved over the old entry. The token is spent when the change starts.
+   Drawing a curse card rolls its dice; taking it adds an active curse (state.curses), which changes the cards
+   you draw until its counter runs out. The counter counts kept cards. */
+const POWERUP_DO = {
+  reroll: "re-roll one die, on the card in play or a kept card",
+  flip: "flip a do or don't on a kept card",
+  choose: "choose one list, coin or phoneme pick instead of rolling it",
+  discard: "discard the card in play",
+  cleanse: "end one active curse",
+};
+const newId = (p) => p + Date.now().toString(36) + rollValue(1e6).toString(36);
+const hasToken = (kind) => state.tokens.some((t) => t.kind === kind);
+const firstToken = (kind) => state.tokens.find((t) => t.kind === kind);
+const atCap = () => state.tokens.length >= tokenCap();
+function saveTokens() { ls.set("pc.tokens", state.tokens); }
+function spendToken(id) { state.tokens = state.tokens.filter((t) => t.id !== id); saveTokens(); }
+function saveCurses() { ls.set("pc.curses", state.curses); }
+// The card shown while a token changes a kept card: the power-up card it came from.
+function tokenCard(t) {
+  const card = state.byId.get(t.cardId) || state.library.find((c) => c.modifier === t.kind);
+  if (card) return card;
+  return { id: "token-" + t.kind, name: t.name, category: "Power-up", rank: "±", mark: "±", suit: suitFor("±"), tags: {}, modifier: t.kind, copies: 1,
+    slots: [], parts: [{ t: "text", s: upperLead(POWERUP_DO[t.kind] || t.kind), sp: false, cond: null, condRaw: null }] };
+}
+// Whether kept cards can take a Re-roll or Flip, cached until the deck or card list changes.
+let deckVer = 0, targetMemo = { ver: -1 };
+function keptTargets(kind) {
+  if (targetMemo.ver !== deckVer) targetMemo = { ver: deckVer };
+  if (!(kind in targetMemo)) targetMemo[kind] = modTargets(kind, state.deck, cardById, universeFrom(state.lists), true).length > 0;
+  return targetMemo[kind];
+}
+// Dice on the card in play that a Re-roll can land somewhere else: rolled (not set by the deck), with two or
+// more values still open once it and anything depending on it are cleared.
+function rerollSlotsInPlay(c) {
+  if (!c || c.mod || c.powerup || !state.profile) return [];
+  const base = baseFor(c), out = [];
+  c.card.slots.forEach((s, i) => {
+    const v = c.values[i];
+    if (!v || v.skipped || v.forced) return;
+    if (s.kind === "pool") { if (v.sym && (c.hands[i] || []).length >= 2) out.push(i); return; }
+    const cleared = clearSlots(c.values, changedSlots(c.card, i));
+    if (openValues(c.card, cleared, i, base, 2).length >= 2) out.push(i);
+  });
+  return out;
+}
+// Whether a token can be spent right now: { ok } or { why }.
+function tokenUse(kind) {
+  const c = state.current;
+  const midRoll = state.busy || state.dice.some((d) => d.rolling) || !!(c && c.lo);
+  if (kind === "choose") {
+    if (!c || c.idx < 0 || c.powerup || (c.mod && c.mod.step !== "change")) return { why: "Use it when a card in play is about to roll a list, a coin or a phoneme." };
+    if (c.choosing) return { why: "You're choosing this one already." };
+    const sl = liveSlot(c, c.idx);
+    if (!sl.options || sl.options.length < 2) return { why: "This blank is a number, so it has to be rolled. Free pick works on lists, coins and phonemes." };
+    if (midRoll) return { why: "Wait for the die to land." };
+    return { ok: true };
+  }
+  if (kind === "reroll") {
+    if (c && (c.mod || c.powerup)) return { why: c.powerup ? "Take or leave the power-up in play first." : "Finish the change in play first." };
+    if (c) {
+      if (midRoll) return { why: "Wait for the die to land." };
+      return rerollSlotsInPlay(c).length ? { ok: true } : { why: "Nothing rolled on the card in play can land on something else. To re-roll a kept card, finish this one first." };
+    }
+    return keptTargets("reroll") ? { ok: true } : { why: "No kept card has a die that can land on something else." };
+  }
+  if (kind === "flip") {
+    if (c) return { why: "Flip changes a kept card, so finish the card in play first." };
+    return keptTargets("flip") ? { ok: true } : { why: "No kept card has a do or don't that can flip without a clash." };
+  }
+  if (kind === "discard") {
+    if (!c || c.powerup || c.mod) return { why: "Use it to discard a card in play." };
+    if (midRoll) return { why: "Wait for the die to land." };
+    return { ok: true };
+  }
+  if (kind === "cleanse") return state.curses.length ? { ok: true } : { why: "No curse is active." };
+  return { why: "This tool doesn't know that power-up." };
+}
+function useToken(kind) {
+  const t = firstToken(kind); if (!t) return;
+  const u = tokenUse(kind);
+  if (!u.ok) { toast(u.why); return; }
+  const c = state.current;
+  state.tokenSub = null;
+  if (c) c.rrPick = false;
+  if (kind === "choose") { c.choosing = t.id; setTrayForSlot(liveSlot(c, c.idx), false); renderTokens(); return; }
+  if (kind === "discard") return discard();
+  if (kind === "cleanse") {
+    if (state.curses.length === 1) return cleanse(t.id, state.curses[0].kind);
+    state.tokenSub = { kind, tokenId: t.id }; renderTokens(); return;
+  }
+  if (kind === "reroll" && c) {
+    const slots = rerollSlotsInPlay(c);
+    if (slots.length === 1) return rerollInPlay(t.id, slots[0]);
+    state.tokenSub = { kind, tokenId: t.id }; c.rrPick = true; updateRule(); return;
+  }
+  startTokenMod(t);
+}
+function cancelSub() {
+  state.tokenSub = null;
+  if (state.current) state.current.rrPick = false;
+  updateRule();
+}
+// Re-roll on the card in play: the die (and anything depending on it) is cleared and rolled again.
+function rerollInPlay(tokenId, i) {
+  const c = state.current; if (!c || state.busy || !rerollSlotsInPlay(c).includes(i)) return;
+  spendToken(tokenId);
+  state.tokenSub = null; c.rrPick = false; c.choosing = false; c.lo = null;
+  const changed = changedSlots(c.card, i);
+  c.values = clearSlots(c.values, changed);
+  for (const j of changed) if (c.allowed) delete c.allowed[j];
+  c.rerolled = i;
+  saveInPlay();
+  advance(false);
+}
+function cleanse(tokenId, kind) {
+  const k = state.curses.find((x) => x.kind === kind); if (!k) return;
+  spendToken(tokenId);
+  state.tokenSub = null;
+  state.curses = state.curses.filter((x) => x !== k); saveCurses();
+  const before = state.aside.slice();
+  refreshProfile();
+  updateRule();
+  toast(`Ended ${curseLabel(k)}.${state.current && state.current.card.cursedBy ? " The card in play stays as it was drawn." : ""}` + pileNews(before));
+}
+// A Re-roll or Flip token on a kept card starts at picking the card.
+function modInPlay(card, tok) {
+  return { card, values: [], idx: -1, hands: {}, mod: { kind: tok.kind, tokenId: tok.id, cardId: card.id, name: tok.name, step: "target" } };
+}
+function startTokenMod(t) {
+  state.current = modInPlay(tokenCard(t), t);
+  saveInPlay(); renderCurrent(); renderPile(); setTrayForMod(true);
 }
 function findTargets(c) {
   c.targets = modTargets(c.mod.kind, state.deck, cardById, universeFrom(state.lists));
@@ -2564,11 +2919,6 @@ function setTrayForMod(first) {
   $("trayMark").textContent = "±";
   $("why").innerHTML = "";
   $("strip").innerHTML = "";
-  if (m.kind === "choose") {
-    $("trayHint").textContent = "nothing to roll";
-    setPrompt("Use this card to choose your next pick yourself.", "The next time a card rolls for an option, you pick one of the options that fit your deck instead. Numbers are still rolled.");
-    return;
-  }
   const verb = m.kind === "flip" ? "flip" : "re-roll";
   if (m.step === "slot" && c.target) {
     $("trayHint").textContent = "pick a die to re-roll";
@@ -2580,13 +2930,14 @@ function setTrayForMod(first) {
   const targets = c.targets || findTargets(c);
   $("trayHint").textContent = `pick a kept card to ${verb}`;
   if (!targets.length) {
-    setPrompt(`None of your kept cards can ${m.kind === "flip" ? "flip" : "be re-rolled"} right now.`, "Discard this card to the bottom of the pile.");
+    setPrompt(`None of your kept cards can ${m.kind === "flip" ? "flip" : "be re-rolled"} right now.`, "Cancel to keep the token for later.");
     return;
   }
   const others = state.deck.length - targets.length;
   setPrompt(m.kind === "flip" ? "Pick a kept card to flip." : "Pick a kept card to re-roll a die on.",
     (m.kind === "flip" ? "Its do becomes don't, or its don't becomes do, and anything that depends on it is rolled again. " : "The die rolls again over the values that fit the rest of your deck. ")
-    + (others ? `${others} kept ${others === 1 ? "card has" : "cards have"} nothing that can change without a clash.` : ""));
+    + (others ? `${others} kept ${others === 1 ? "card has" : "cards have"} nothing that can change without a clash. ` : "")
+    + "The token is spent once you pick.");
   $("strip").innerHTML = targets.map((t) => {
     const flip = m.kind === "flip" ? t.slots[0].flip : null;
     const title = t.entry.text + (flip ? ` Flips to “${flip.label}”.` : "");
@@ -2603,27 +2954,38 @@ function pickTarget(entryId) {
   saveInPlay(); renderCurrent(); setTrayForMod();
 }
 function pickSlot(i) {
-  const c = state.current; if (!c || !c.mod || c.mod.step !== "slot" || state.busy) return;
+  const c = state.current; if (!c) return;
+  if (c.rrPick && state.tokenSub && state.tokenSub.kind === "reroll") return rerollInPlay(state.tokenSub.tokenId, i);
+  if (!c.mod || c.mod.step !== "slot" || state.busy) return;
   const sl = c.target.slots.find((x) => x.i === i); if (sl) startChange(c.target, sl);
 }
 function backToTargets() {
   const c = state.current; if (!c || !c.mod || state.busy) return;
-  state.current = modInPlay(state.byId.get(c.mod.cardId));
+  const t = state.tokens.find((x) => x.id === c.mod.tokenId);
+  if (!t) return cancelMod();
+  state.current = modInPlay(tokenCard(t), t);
   saveInPlay(); renderCurrent(); setTrayForMod();
+}
+function cancelMod() {
+  const c = state.current; if (!c || !c.mod || c.mod.step === "change") return;
+  state.current = null; saveInPlay();
+  renderCurrent(); renderPile(); setTrayIdle();
+  toast(`Kept your ${c.mod.name} token for later.`);
 }
 function startChange(t, sl) {
   const m = state.current.mod, changed = changedSlots(t.card, sl.i);
   const values = clearSlots(t.values, changed);
   if (sl.flip) values[sl.i] = { n: sl.flip.n, label: sl.flip.label, flipped: m.name };
+  if (m.tokenId) spendToken(m.tokenId);
   state.current = { card: t.card, values, idx: -1, hands: {}, base: t.base,
-    mod: { kind: m.kind, cardId: m.cardId, name: m.name, step: "change", entryId: t.entry.id, slot: sl.i, changed } };
+    mod: { kind: m.kind, cardId: m.cardId, name: m.name, step: "change", entryId: t.entry.id, slot: sl.i, changed, ...(m.legacyPid ? { legacyPid: m.legacyPid } : {}) } };
   saveInPlay(); renderCurrent(); renderPile();
   advance(true);
 }
-// After the deck changes, the targets a modifier offers may have changed too.
+// After the deck changes, the targets a token offers may have changed too.
 function refreshMod() {
   const c = state.current;
-  if (!c || !c.mod || c.mod.kind === "choose" || c.mod.step === "change" || state.busy) return;
+  if (!c || !c.mod || c.mod.step === "change" || state.busy) return;
   const targets = findTargets(c);
   if (c.mod.step === "slot") {
     const t = c.target && targets.find((x) => x.entry.id === c.target.entry.id);
@@ -2633,18 +2995,12 @@ function refreshMod() {
   }
   setTrayForMod();
 }
-// Uses the modifier in play: a Free pick token, or the change to a kept card.
+// Saves the change a Re-roll or Flip token made to a kept card.
 function useMod() {
   const c = state.current, m = c.mod;
-  if (m.kind === "choose") {
-    state.freePick += 1; ls.set("pc.free", state.freePick);
-    doneWithMod();
-    toast("Your next pick is your choice.");
-    return;
-  }
   if (m.step !== "change" || c.idx !== -1) return;
   const old = state.deck.find((e) => e.id === m.entryId);
-  if (!old) { toast("That card has left your deck, so pick another."); backToTargets(); return; }
+  if (!old) { toast("That card has left your deck, so the change can't be saved."); doneWithMod(); return; }
   const entry = changedEntry(old, c.card, c.values, m.changed, m.name);
   doneWithMod();
   const before = state.aside.slice();
@@ -2652,17 +3008,146 @@ function useMod() {
   toast(`Changed “${entry.name}” with “${m.name}”.` + pileNews(before));
 }
 function doneWithMod() {
-  const id = state.current.mod.cardId;
-  if (!state.used.includes(id)) state.used.push(id);
-  ls.set("pc.used", state.used);
+  // A change started by a Phase 6 modifier card puts that card with the used ones.
+  const id = state.current.mod.legacyPid;
+  if (id && !state.used.includes(id)) { state.used.push(id); ls.set("pc.used", state.used); }
   state.current = null; saveInPlay();
   renderCurrent(); renderPile(); setTrayIdle();
+}
+// A power-up card in play: take its token, or at the cap, give one up (which may be the new one).
+function setTrayForPowerup(first) {
+  const c = state.current, card = c.card;
+  clearDice();
+  $("trayMark").textContent = "±";
+  $("why").innerHTML = "";
+  const cap = tokenCap();
+  if (state.tokens.length >= cap) {
+    $("trayHint").textContent = "you hold the most tokens";
+    setPrompt(`You hold ${state.tokens.length} tokens, the most you can.`, `Give one up to take ${card.name}, or leave ${card.name}.`);
+    $("strip").innerHTML = state.tokens.map((t) => `<button type="button" class="opt pick" data-giveup="${esc(t.id)}">Give up ${esc(t.name)}</button>`).join("")
+      + `<button type="button" class="opt pick" data-giveup="new">Leave ${esc(card.name)}</button>`;
+    if (first && !RM) $("strip").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 500, fill: "backwards" });
+  } else {
+    $("trayHint").textContent = "nothing to roll";
+    setPrompt(`Take the ${card.name} token.`, `Spend it when you choose. It lets you ${POWERUP_DO[card.modifier]}.${cap < Infinity ? ` You can hold ${cap} tokens in all.` : ""}`);
+    $("strip").innerHTML = "";
+  }
+}
+function takeToken(giveUp) {
+  const c = state.current; if (!c || !c.powerup || state.busy) return;
+  const card = c.card;
+  let msg;
+  if (giveUp === "new") msg = `Left ${card.name}.`;
+  else {
+    let gone = null;
+    if (giveUp) { gone = state.tokens.find((t) => t.id === giveUp); if (gone) spendToken(gone.id); }
+    if (atCap()) return;
+    state.tokens.push({ id: newId("t"), kind: card.modifier, name: card.name, cardId: card.id }); saveTokens();
+    msg = `Took a ${card.name} token.` + (gone ? ` Gave up ${gone.name}.` : "");
+  }
+  const pid = c.pid || card.id;
+  if (!state.used.includes(pid)) { state.used.push(pid); ls.set("pc.used", state.used); }
+  state.current = null; saveInPlay();
+  renderCurrent(); renderPile(); setTrayIdle();
+  toast(msg);
+}
+// "Multiplier ×2 for your next 3 kept cards".
+const curseText = (k) => `${curseLabel(k)} for your next ${k.left} ${curseUnit(k.kind, k.left)}`;
+// A curse card with its dice rolled: taking it makes the curse active, or resets it if it already is.
+function takeCurse() {
+  const c = state.current; if (!c || !c.card.curse || c.idx !== -1 || state.busy) return;
+  const k = curseFrom(c.card, c.values);
+  const at = state.curses.findIndex((x) => x.kind === k.kind);
+  if (at >= 0) state.curses[at] = k; else state.curses.push(k);
+  saveCurses();
+  const pid = c.pid || c.card.id;
+  if (!state.used.includes(pid)) { state.used.push(pid); ls.set("pc.used", state.used); }
+  state.current = null; saveInPlay();
+  renderCurrent(); setTrayIdle();
+  const before = state.aside.slice();
+  refreshProfile();
+  toast(`${at >= 0 ? "Reset" : "Cursed"}: ${curseText(k)}.` + pileNews(before));
+}
+// After a card is kept, each curse counts it. Exact count only counts the ceiling cards it changed.
+function tickCurses(card) {
+  if (!state.curses.length) return [];
+  const hit = new Set((card.cursedBy || []).map((k) => k.kind));
+  for (const k of state.curses) if (k.kind !== "exact-count" || hit.has("exact-count")) k.left -= 1;
+  const ended = state.curses.filter((k) => k.left <= 0);
+  state.curses = state.curses.filter((k) => k.left > 0);
+  saveCurses();
+  return ended;
+}
+// The game layer: curses, Discard and Cleanse cards, paid discards and the token cap. Off, those cards leave
+// the pile, active curses end and Discard and Cleanse tokens are dropped.
+function setGame(on) {
+  if (state.busy || on === state.game) return;
+  state.game = on; ls.set("pc.game", on);
+  const notes = [];
+  const c = state.current;
+  if (!on) {
+    const drop = (id) => { const card = cardOfPid(id); return !!card && gameOnly(card); };
+    state.pile = state.pile.filter((id) => !drop(id));
+    state.aside = state.aside.filter((id) => !drop(id));
+    state.used = state.used.filter((id) => !drop(id));
+    if (c && !c.mod && drop(c.pid || c.card.id)) { state.current = null; saveInPlay(); renderCurrent(); setTrayIdle(); notes.push(`“${c.card.name}” left play.`); }
+    if (state.curses.length) { notes.push(`${state.curses.map(curseLabel).join(" and ")} ended.`); state.curses = []; }
+    const lost = state.tokens.filter((t) => t.kind === "discard" || t.kind === "cleanse");
+    if (lost.length) { state.tokens = state.tokens.filter((t) => !lost.includes(t)); notes.push(`Dropped ${lost.length} Discard and Cleanse ${lost.length === 1 ? "token" : "tokens"}.`); }
+  } else {
+    const have = new Set(state.pile.concat(state.aside, state.used, [inPlayId()]));
+    for (const id of allPileIds()) if (!have.has(id) && gameOnly(cardOfPid(id))) state.pile.splice(rollValue(state.pile.length + 1) - 1, 0, id);
+  }
+  ls.set("pc.pile", state.pile); ls.set("pc.aside", state.aside); ls.set("pc.used", state.used);
+  saveTokens(); saveCurses();
+  state.tokenSub = null;
+  syncGameBtn();
+  refreshProfile();
+  renderPile();
+  if (state.current) updateRule();
+  if (state.current && state.current.powerup) setTrayForPowerup();
+  toast(on ? "Game layer on. Curses, Discard and Cleanse are in the pile, discarding costs a Discard token, and you can hold 3 tokens."
+    : "Game layer off. No curses, free discards, and no limit on tokens." + (notes.length ? " " + notes.join(" ") : ""));
+}
+function syncGameBtn() {
+  const b = $("gameBtn");
+  b.setAttribute("aria-pressed", String(state.game));
+  b.textContent = state.game ? "Game layer on" : "Game layer off";
+  b.title = state.game ? "Curses, paid discards and a limit of 3 tokens. Click to turn them off." : "Click to add curses, Discard and Cleanse cards, paid discards and a limit of 3 tokens.";
+}
+// The power-up tokens you hold and the curses that are active, beside the card in play.
+function renderTokens() {
+  const el = $("tokens"); if (!el) return;
+  const cap = tokenCap(), toks = state.tokens;
+  const sub = state.tokenSub;
+  if (sub && !state.tokens.some((t) => t.id === sub.tokenId)) state.tokenSub = null;
+  if (state.tokenSub && state.tokenSub.kind === "reroll" && !(state.current && state.current.rrPick)) state.tokenSub = null;
+  const kinds = POWERUPS.filter((k) => toks.some((t) => t.kind === k));
+  let html = `<div class="tok-head"><span>Power-ups</span><span>${cap < Infinity ? `${toks.length} of ${cap}` : toks.length ? `${toks.length} held` : ""}</span></div>`;
+  if (!kinds.length) html += `<p class="tok-empty">None yet. A power-up card gives you a token to spend when you choose.</p>`;
+  else html += `<div class="tok-row">${kinds.map((k) => {
+    const list = toks.filter((t) => t.kind === k), u = tokenUse(k);
+    const title = upperLead(POWERUP_DO[k]) + "." + (u.ok ? "" : " " + u.why);
+    return `<button type="button" class="tok" data-tok="${k}" aria-disabled="${!u.ok}" title="${esc(title)}">${esc(list[0].name)}${list.length > 1 ? ` <span class="k">×${list.length}</span>` : ""}</button>`;
+  }).join("")}</div>`;
+  const s2 = state.tokenSub;
+  if (s2 && s2.kind === "cleanse") {
+    html += `<div class="tok-sub"><span>End which curse?</span>${state.curses.map((k) => `<button type="button" class="opt pick" data-cleanse="${esc(k.kind)}">${esc(curseLabel(k))}</button>`).join("")}<button type="button" class="linkish" data-subcancel="1">Cancel</button></div>`;
+  } else if (s2 && s2.kind === "reroll" && state.current) {
+    const c = state.current;
+    html += `<div class="tok-sub"><span>Re-roll which die?</span>${rerollSlotsInPlay(c).map((i) => `<button type="button" class="opt pick" data-rrslot="${i}"><b>${esc(dieName(c.card.slots[i]))}</b>${esc(c.values[i].label)}</button>`).join("")}<button type="button" class="linkish" data-subcancel="1">Cancel</button></div>`;
+  }
+  if (state.curses.length) {
+    html += `<div class="tok-head"><span>Curses</span></div><div class="tok-row">${state.curses.map((k) =>
+      `<span class="curse" title="${esc(upperLead(CURSE_HELP[k.kind] || k.kind) + ".")}">${esc(curseLabel(k))} <span class="k">${k.left} ${esc(curseUnit(k.kind, k.left))} left</span></span>`).join("")}</div>`;
+  }
+  el.innerHTML = html;
 }
 // " Set aside X." or " X went back into the pile.", after the deck changed.
 function pileNews(before) {
   const set = state.aside.filter((id) => !before.includes(id));
   const back = before.filter((id) => !state.aside.includes(id) && state.pile.includes(id));
-  const names = (ids) => ids.slice(0, 2).map((id) => `“${cardName(id)}”`).join(" and ") + (ids.length > 2 ? ` and ${ids.length - 2} more` : "");
+  const names = (ids) => { const n = nameCounts(ids); return n.slice(0, 2).map((x) => `“${x}”`).join(" and ") + (n.length > 2 ? ` and ${n.length - 2} more` : ""); };
   return (set.length ? ` Set aside ${names(set)}, which no longer ${set.length === 1 ? "fits" : "fit"}.` : "")
     + (back.length ? ` ${upperLead(names(back))} went back into the pile.` : "");
 }
@@ -2721,9 +3206,9 @@ function whyHTML(slot) {
 }
 function setTrayForSlot(slot, first) {
   const c0 = state.current;
-  // A Free pick token: the next roll over options is chosen from the strip instead.
-  c0.choosing = !c0.mod && state.freePick > 0 && !!slot.options && slot.options.length >= 2;
-  if (c0.choosing) return setTrayChoose(slot, first);
+  // A Free pick token being spent: this roll over options is chosen from the strip instead.
+  if (c0.choosing && slot.options && slot.options.length >= 2) return setTrayChoose(slot, first);
+  c0.choosing = false;
   clearDice();
   const tray = $("tray");
   const name = dieBase(slot);
@@ -2763,6 +3248,9 @@ function setTrayForSlot(slot, first) {
       : `Whichever number lands, that option goes on the card.${slot.sides > len ? ` Anything above ${len} is rolled again.` : ""} Blank ${pos} of ${n}.`;
   }
   if (c.stuck && !c.allowed[c.idx]) sub = `Every value here clashes with your deck, so nothing is crossed out. ${c.stuck} ` + sub;
+  if (c.lo && c.lo.i === c.idx) { lead = `Long odds: roll the ${name} again.`; sub = `The first roll was ${c.lo.label}. The rarer of the two goes on the card.`; }
+  else if (slot.longOdds) sub = "Long odds: you roll twice, and the rarer option goes on the card. " + sub;
+  else if (slot.pool && c.card.longOdds) sub = "Long odds dealt the rarest phonemes first. " + sub;
   setPrompt(lead, sub);
   let strip = "";
   if (slot.pool) {
@@ -2794,7 +3282,7 @@ function setTrayChoose(slot, first) {
   $("trayMark").textContent = "pick";
   $("trayHint").textContent = "no roll this time";
   setPrompt(`Your choice: pick ${slot.kind === "choice" ? "a side" : "an option"} instead of rolling the ${slot.pool ? "d" + slot.sides : name}.`,
-    `Free pick lets you choose this one. ${slot.crossed && slot.crossed.length ? "Options that clash with your deck are crossed out. " : ""}Blank ${c.idx + 1} of ${c.card.slots.length}.`);
+    `Free pick lets you choose this one, and the token is spent when you do. ${slot.crossed && slot.crossed.length ? "Options that clash with your deck are crossed out. " : ""}Blank ${c.idx + 1} of ${c.card.slots.length}.`);
   const btn = (n, inner, extra = "") => `<button type="button" class="opt pick${extra}" data-choose="${n}">${inner}</button>`;
   let strip;
   if (slot.pool) strip = slot.options.map((sym, k) => { const p = phonemeInfo(sym); const t = p ? `${p.name}, ${fmtPct(p.pct)} of languages` : sym;
@@ -2806,6 +3294,7 @@ function setTrayChoose(slot, first) {
       return at >= 0 ? btn(at + 1, esc(o)) : `<span class="opt off" title="${esc(reasons.get(k + 1) || "")}"><b aria-hidden="true">×</b><s>${esc(o)}</s></span>`;
     }).join("");
   } else strip = slot.options.map((o, k) => btn(k + 1, esc(o))).join("");
+  strip += `<button type="button" class="linkish" data-unchoose="1">Roll instead</button>`;
   $("strip").innerHTML = strip;
   $("why").innerHTML = whyHTML(slot);
   if (first && !RM) $("strip").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 500, fill: "backwards" });
@@ -2818,12 +3307,17 @@ function setTrayDone() {
     $("keepBtn").focus({ preventScroll: true });
     return;
   }
-  const noDice = state.current && !state.current.card.slots.length;
-  if (noDice) { clearDice(); $("trayMark").textContent = "—"; }
+  const c = state.current;
+  const noDice = c && !c.card.slots.length;
+  if (noDice) { clearDice(); $("trayMark").textContent = c.card.curse ? "†" : "–"; }
   const d = state.dice[0];
   if (d) { d.locked = true; d.el.classList.add("spent"); d.el.setAttribute("aria-label", "Roll finished"); }
   $("trayHint").textContent = noDice ? "nothing to roll" : "all dice rolled";
-  setPrompt(noDice ? "This card has nothing to roll." : "Every blank is filled.", "Keep this card in your deck, or discard it to the bottom of the pile.");
+  const away = !state.game ? "discard it to the bottom of the pile" : hasToken("discard") ? "spend a Discard token to discard it" : "you have no Discard token, so it can't be discarded";
+  if (c && c.card.curse) {
+    const k = curseFrom(c.card, c.values);
+    setPrompt(`Take the curse: ${curseText(k)}.`, `It ${CURSE_HELP[k.kind]}. ${upperLead(away)}.`);
+  } else setPrompt(noDice ? "This card has nothing to roll." : "Every blank is filled.", state.game && !hasToken("discard") ? "Keep this card in your deck. You have no Discard token, so it can't be discarded." : `Keep this card in your deck, or ${away}.`);
   $("strip").innerHTML = "";
   $("why").innerHTML = "";
   $("keepBtn").focus({ preventScroll: true });
@@ -2838,8 +3332,30 @@ function onSlotResult(n, die) {
     die.el.classList.remove("landed"); die.el.classList.add("waiting");
     return;
   }
+  // Long odds: the first roll is noted and the die is thrown again; the rarer of the two goes on the card.
+  if (slot.longOdds && !(c.lo && c.lo.i === i)) {
+    const first = valueFor(slot, n);
+    c.lo = { i, n, label: first.label };
+    const cell = $("strip").querySelector(`.opt[data-n="${n}"]`);
+    if (cell) cell.classList.add("hit");
+    setPrompt(`Rolled ${n}: ${first.label}. Long odds: roll again.`, "The rarer of the two goes on the card.");
+    updateRule();
+    die.el.classList.remove("landed"); die.el.classList.add("waiting");
+    return;
+  }
+  let odds = null;
+  if (c.lo && c.lo.i === i) {
+    const a = c.lo, b = valueFor(slot, n);
+    const fa = optionFreq(slot, a.label), fb = optionFreq(slot, b.label);
+    odds = [a.label, b.label];
+    if (fa != null && (fb == null || fa < fb)) n = a.n;
+    c.lo = null;
+    $("strip").querySelectorAll(".opt.hit").forEach((x) => x.classList.remove("hit"));
+  }
   die.locked = true;
   const { sym, raw, label, value } = valueFor(slot, n);
+  if (odds) value.odds = odds;
+  if (c.rerolled === i) { value.rerolled = true; c.rerolled = null; }
   let from = die.el;
   if (slot.options || slot.faces) {
     const cell = $("strip").querySelector(`.opt[data-n="${n}"]`);
@@ -2847,6 +3363,7 @@ function onSlotResult(n, die) {
   }
   let said;
   if (slot.kind === "choice") said = `The coin says ${label}.`;
+  else if (odds) said = `Long odds: ${odds[0]} or ${odds[1]}. ${label} is rarer.`;
   else if (slot.kind === "pick") said = `Rolled ${n}: ${label}.`;
   else if (isModified(slot)) {
     const ops = (slot.mult > 1 ? ` × ${slot.mult}` : "") + (slot.offset ? ` ${slot.offset < 0 ? "−" : "+"} ${Math.abs(slot.offset)}` : "");
@@ -2885,9 +3402,10 @@ function choose(n, el) {
   const { sym, label, value } = valueFor(slot, n);
   delete value.roll; delete value.of;
   value.chosen = true;
-  state.freePick = Math.max(0, state.freePick - 1); ls.set("pc.free", state.freePick);
-  c.choosing = false;
-  renderPile();
+  if (c.rerolled === i) { value.rerolled = true; c.rerolled = null; }
+  spendToken(c.choosing);
+  c.choosing = false; c.lo = null;
+  renderTokens();
   el.classList.add("hit");
   setPrompt(`You chose ${label}.`, "Filling it in…");
   state.busy = true;
@@ -2923,7 +3441,9 @@ function fly(fromEl, toEl, text, done) {
 function keep() {
   const c = state.current; if (!c || state.busy) return;
   if (c.mod) return useMod();
+  if (c.powerup) return takeToken();
   if (c.idx !== -1) return;
+  if (c.card.curse) return takeCurse();
   const entry = {
     id: "k" + Date.now().toString(36) + rollValue(1e6).toString(36),
     cardId: c.card.id, category: c.card.category, name: c.card.name, rank: c.card.rank,
@@ -2933,6 +3453,7 @@ function keep() {
     rolls: rollSummary(c.card, c.values),
     rolled: rolledFacts(c.card, c.values),
     ...(Object.keys(c.card.tags).length ? { tags: c.card.tags } : {}),
+    ...(c.card.cursedBy ? { curse: c.card.cursedBy } : {}),
     createdAt: Date.now(),
   };
   const syms = c.values.filter((v) => v && v.sym).map((v) => v.sym);
@@ -2943,8 +3464,10 @@ function keep() {
     state.busy = false; state.current = null; saveInPlay();
     renderCurrent(); renderPile(); setTrayIdle();
     const before = state.aside.slice();
+    const ended = tickCurses(c.card);
     addEntry(entry);
-    toast(`Kept “${entry.name}”.` + pileNews(before));
+    toast(`Kept “${entry.name}”${c.card.cursedBy ? `, cursed by ${c.card.cursedBy.map(curseLabel).join(" and ")}` : ""}.`
+      + (ended.length ? ` ${ended.map(curseLabel).join(" and ")} ended.` : "") + pileNews(before));
   };
   if (RM || !el) return finish();
   const grid = $("deckGrid"), a = el.getBoundingClientRect(), b = grid.getBoundingClientRect();
@@ -2955,11 +3478,19 @@ function keep() {
 }
 function discard() {
   const c = state.current; if (!c || state.busy) return;
-  if (c.mod && c.mod.step === "change") return; // the change is under way
+  if (c.mod) return cancelMod(); // a change can be cancelled until it starts, and not after
+  if (c.powerup) return;
+  // With the game layer on, a discard costs a Discard token.
+  let paid = false;
+  if (state.game) {
+    const t = firstToken("discard");
+    if (!t) { toast("Discarding costs a Discard token, and you don't have one."); return; }
+    spendToken(t.id); paid = true;
+  }
   state.pile.push(inPlayId()); ls.set("pc.pile", state.pile);
   const el = $("cardSlot").querySelector(".card");
   state.busy = true;
-  const finish = () => { state.busy = false; state.current = null; saveInPlay(); renderCurrent(); renderPile(); setTrayIdle(); toast("Discarded. It went to the bottom of the pile."); };
+  const finish = () => { state.busy = false; state.current = null; saveInPlay(); renderCurrent(); renderPile(); setTrayIdle(); toast(`Discarded${paid ? " with a Discard token" : ""}. It went to the bottom of the pile.`); };
   if (RM || !el) return finish();
   el.animate([{ transform: "none", opacity: 1 }, { transform: "translate(-40px, 60px) rotate(-14deg)", opacity: 0 }], { duration: 380, easing: "ease-in", fill: "forwards" }).onfinish = finish;
 }
@@ -2976,12 +3507,13 @@ function valuesFit(card, values) {
 }
 function saveInPlay() {
   const c = state.current;
-  ls.set("pc.inplay", c ? { id: c.card.id, values: c.values, hands: c.hands, ...(c.mod ? { mod: c.mod } : {}) } : null);
+  ls.set("pc.inplay", c ? { id: c.card.id, pid: c.pid || null, values: c.values, hands: c.hands, ...(c.card.cursedBy ? { curse: c.card.cursedBy } : {}), ...(c.powerup ? { powerup: true } : {}), ...(c.mod ? { mod: c.mod } : {}) } : null);
 }
 
 /* ---------- Deck ---------- */
 let freshId = null;
 function renderDeck() {
+  deckVer++;
   const deck = state.deck.slice().sort((a, b) => a.createdAt - b.createdAt);
   const grid = $("deckGrid");
   $("deckCount").textContent = `${deck.length} constraint${deck.length === 1 ? "" : "s"}`;
@@ -2999,7 +3531,7 @@ function renderDeck() {
         <span class="n">${String(i + 1).padStart(2, "0")} · ${esc(e.category)}</span>
         <h3>${esc(e.name)}</h3>
         <p>${sanitizeEntryHTML(e)}</p>
-        <ul>${(e.rolls || []).map((r) => `<li>${esc(r)}</li>`).join("")}${(e.changes || []).map((x) => `<li class="chg" title="${esc(x.was ? "It said: " + x.was : "")}">changed by ${esc(x.by)}</li>`).join("")}</ul>
+        <ul>${(e.rolls || []).map((r) => `<li>${esc(r)}</li>`).join("")}${(e.changes || []).map((x) => `<li class="chg" title="${esc(x.was ? "It said: " + x.was : "")}">changed by ${esc(x.by)}</li>`).join("")}${Array.isArray(e.curse) && e.curse.length ? `<li class="cur">cursed by ${esc(e.curse.map(curseLabel).join(" and "))}</li>` : ""}</ul>
         <button class="x" type="button" data-remove="${esc(e.id)}" aria-label="Remove ${esc(e.name)} from deck">×</button>
       </article>`;
     }).join("");
@@ -3016,7 +3548,7 @@ function sanitizeEntryHTML(e) {
 function deckText(deck) {
   if (!deck.length) return "";
   return `Phonology Challenge (${deck.length} constraint${deck.length === 1 ? "" : "s"})\n\n` +
-    deck.map((e, i) => `${i + 1}. ${e.category} · ${e.name}: ${e.text}`).join("\n");
+    deck.map((e, i) => `${i + 1}. ${e.category} · ${e.name}: ${e.text}${Array.isArray(e.curse) && e.curse.length ? ` (cursed by ${e.curse.map(curseLabel).join(" and ")})` : ""}`).join("\n");
 }
 function addEntry(entry) {
   freshId = entry.id;
@@ -3222,7 +3754,10 @@ function renderProfile() {
   else out.push(`<p class="plegend">3+ means at least 3, ≤2 at most 2. Struck through means ruled out. Hover a chip for the cards behind it.</p>`);
   if (base && base.untracked) out.push(`<p class="pnote">${base.untracked === 1 ? "1 card" : base.untracked + " cards"} kept before rolls were recorded ${base.untracked === 1 ? "isn’t" : "aren’t"} in the profile.</p>`);
   if (state.aside.length) {
-    const items = state.aside.map((id) => { const r = state.asideWhy.get(id); return `<li><b>${esc(cardName(id))}</b>${r ? `<span>${esc(r.text)}</span>` : ""}</li>`; }).join("");
+    // Copies of a card share a reason, so they're listed once with a count.
+    const seen = new Map();
+    for (const id of state.aside) { const k = baseIdOf(id); if (!seen.has(k)) seen.set(k, { id, n: 0 }); seen.get(k).n++; }
+    const items = [...seen.values()].map(({ id, n }) => { const r = state.asideWhy.get(id); return `<li><b>${esc(cardName(id))}${n > 1 ? ` ×${n}` : ""}</b>${r ? `<span>${esc(r.text)}</span>` : ""}</li>`; }).join("");
     out.push(`<section class="pa aside-list" id="asideList"><h4>Set aside (${state.aside.length})</h4><p class="pnote">These wait outside the pile, and go back in when the reason goes away.</p><ul>${items}</ul></section>`);
   }
   body.innerHTML = out.join("");
@@ -3232,7 +3767,8 @@ function renderProfile() {
 // What a card writes to the profile, in words, for the editor preview.
 function writesHelp(c) {
   const t = c.tags;
-  if (c.modifier) return MODIFIER_HELP[c.modifier] + ".";
+  if (c.modifier) return `a token that lets you ${POWERUP_DO[c.modifier]}${c.copies > 1 ? `, ${c.copies} copies` : ""}.`;
+  if (c.curse) return `${CURSE_HELP[c.curse]}${c.copies > 1 ? `, ${c.copies} copies` : ""}.`;
   const once = t.needs ? `, once the deck has ${needsTerms(t.needs).map(needsLabel).join(" and ")}` : "";
   if (t.counts) return `${t.effect === "at-most" ? "caps" : "sets"} ${countNames(t.counts).map((n) => countLabel(n) + (COUNTS[n] ? "" : " (unknown total)")).join(" and ")}${once}.`;
   if (!t.effect) return t.needs ? `waits for ${needsTerms(t.needs).map(needsLabel).join(" and ")}.` : "";
@@ -3268,7 +3804,7 @@ function renderPreview() {
     const writes = writesHelp(c);
     out.push(`<div class="pv"><b style="color:${c.suit}">${esc(c.rank)}</b> · <b>${esc(c.name)}</b>
       <div class="meta">${esc(c.category)} · ${esc(dice)}</div>
-      ${writes ? `<div class="meta">${c.modifier ? "Modifier" : "Profile"}: ${esc(writes)}</div>` : ""}
+      ${writes ? `<div class="meta">${c.modifier ? "Power-up" : c.curse ? "Curse" : "Profile"}: ${esc(writes)}</div>` : ""}
       <div>${ruleHTML(c, [], -1).replace(/<span class="slot[^"]*" data-i="\d+">/g, '<span class="slot">')}</div>
       ${tags ? `<div class="tags">${tags}</div>` : ""}
       ${c.warnings.map((w) => `<div class="warn">${esc(w)}</div>`).join("")}</div>`);
@@ -3299,12 +3835,25 @@ $("strip").addEventListener("click", (e) => {
   else if (b.dataset.target) pickTarget(b.dataset.target);
   else if (b.dataset.reslot) pickSlot(+b.dataset.reslot);
   else if (b.dataset.back) backToTargets();
+  else if (b.dataset.giveup) takeToken(b.dataset.giveup);
+  else if (b.dataset.unchoose) { const c = state.current; if (c && c.choosing && !state.busy) { c.choosing = false; setTrayForSlot(liveSlot(c, c.idx), false); renderTokens(); } }
 });
+$("tokens").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.tok) useToken(b.dataset.tok);
+  else if (b.dataset.cleanse && state.tokenSub) cleanse(state.tokenSub.tokenId, b.dataset.cleanse);
+  else if (b.dataset.rrslot && state.tokenSub) rerollInPlay(state.tokenSub.tokenId, +b.dataset.rrslot);
+  else if (b.dataset.subcancel) cancelSub();
+});
+$("gameBtn").addEventListener("click", () => setGame(!state.game));
 $("cardSlot").addEventListener("click", (e) => {
   const el = e.target.closest(".slot.pickable"); if (el) pickSlot(+el.dataset.i);
 });
 $("keepBtn").addEventListener("click", keep);
-$("discardBtn").addEventListener("click", discard);
+$("discardBtn").addEventListener("click", () => {
+  if ($("discardBtn").getAttribute("aria-disabled") === "true") { toast($("discardBtn").title || "You can't discard this card now."); return; }
+  discard();
+});
 $("deckGrid").addEventListener("click", (e) => {
   const b = e.target.closest("[data-remove]"); if (b) removeEntry(b.dataset.remove);
 });
@@ -3364,31 +3913,54 @@ if (state.source === DEFAULT_SOURCE) {
   if (state.deck.some((e) => RENAMED_IDS[e.cardId])) { state.deck = state.deck.map((e) => RENAMED_IDS[e.cardId] ? { ...e, cardId: ren(e.cardId) } : e); ls.set("pc.deck", state.deck); }
 }
 if (!Array.isArray(state.aside)) state.aside = [];
+if (!Array.isArray(state.used)) state.used = [];
+if (!Array.isArray(state.curses)) state.curses = [];
+const legacyFree = !Array.isArray(state.tokens);
+if (legacyFree) state.tokens = [];
 applySource(state.source, { reshuffle: false });
+// Free pick tokens saved before Phase 7 (a count in pc.free) become tokens.
+if (legacyFree) {
+  const n = Math.max(0, Math.min(20, +ls.get("pc.free", 0) || 0)), fp = state.library.find((c) => c.modifier === "choose");
+  state.tokens = Array.from({ length: n }, () => ({ id: newId("t"), kind: "choose", name: fp ? fp.name : "Free pick", cardId: fp ? fp.id : "" }));
+  saveTokens(); ls.set("pc.free", 0);
+}
+state.tokens = state.tokens.filter((t) => t && POWERUPS.includes(t.kind));
 const saved = ls.get("pc.inplay", null);
+const restoreCard = (id, curse) => { const c = cardOfPid(id); return c ? cursedCard(c, Array.isArray(curse) ? curse : null) : null; };
 if (saved && saved.mod) {
-  // A modifier in play. A change under way comes back as it was; otherwise it starts again at picking a card.
-  const modCard = state.byId.get(saved.mod.cardId);
-  if (modCard && modCard.modifier) {
-    const card = saved.mod.step === "change" && state.byId.get(saved.id);
-    state.current = card && Array.isArray(saved.values) && valuesFit(card, saved.values)
-      ? { card, values: saved.values, idx: -1, hands: saved.hands && typeof saved.hands === "object" ? saved.hands : {}, mod: saved.mod }
-      : modInPlay(modCard);
-    state.pile = state.pile.filter((id) => id !== modCard.id);
+  const m = saved.mod;
+  if (m.step === "change") {
+    // A change under way comes back as it was. One started by a Phase 6 modifier card notes that card.
+    const card = restoreCard(saved.id, saved.curse);
+    if (card && Array.isArray(saved.values) && valuesFit(card, saved.values)) {
+      state.current = { card, values: saved.values, idx: -1, hands: saved.hands && typeof saved.hands === "object" ? saved.hands : {},
+        mod: m.tokenId || m.legacyPid ? m : { ...m, legacyPid: m.cardId } };
+    }
+  } else if (m.tokenId) {
+    // Picking a kept card for a token: start again at picking, if the token is still held.
+    const t = state.tokens.find((x) => x.id === m.tokenId);
+    if (t) state.current = modInPlay(tokenCard(t), t);
+  } else {
+    // A Phase 6 modifier card still being played: it's a power-up card in play now.
+    const card = cardOfPid(m.cardId);
+    if (card && card.modifier) state.current = { card, pid: m.cardId, values: [], idx: -1, hands: {}, powerup: true };
   }
 } else if (saved) {
-  const card = state.library.find((c) => c.id === saved.id);
+  const pid = saved.pid || saved.id, card = restoreCard(pid, saved.curse);
   if (card) {
     const fits = Array.isArray(saved.values) && valuesFit(card, saved.values);
-    state.current = { card, values: fits ? saved.values : [], idx: -1, hands: fits && saved.hands && typeof saved.hands === "object" ? saved.hands : {} };
-    state.pile = state.pile.filter((id) => id !== card.id);
+    state.current = { card, pid, values: fits ? saved.values : [], idx: -1, hands: fits && saved.hands && typeof saved.hands === "object" ? saved.hands : {},
+      ...(card.modifier ? { powerup: true } : {}) };
   }
 }
+if (state.current && state.current.pid) state.pile = state.pile.filter((id) => id !== state.current.pid);
 syncSoundBtn();
+syncGameBtn();
 renderPile();
 renderCurrent();
 renderDeck();
 if (!state.current) setTrayIdle();
+else if (state.current.powerup) setTrayForPowerup();
 else if (state.current.mod && state.current.mod.step !== "change") setTrayForMod();
 else advance(false);
 connectStore();
