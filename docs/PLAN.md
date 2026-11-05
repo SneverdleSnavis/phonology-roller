@@ -1,6 +1,6 @@
 # Phonology Challenge: card expansion plan
 
-As of 2026-11-04 (Phases 1 to 7 built; Phase 8, motion and sound, is in progress, session 1 of 6 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
+As of 2026-11-04 (Phases 1 to 7 built; Phase 8, motion and sound, is in progress, sessions 1 and 2 of 6 done). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
 
 ## Where things stand
 
@@ -12,7 +12,7 @@ As of 2026-11-04 (Phases 1 to 7 built; Phase 8, motion and sound, is in progress
 - **Phase 3, done:** every built-in card that writes to the language now carries `effect`, `counts`, `feature` or `needs` tags. The profile is rebuilt from the deck on every change and shown in a panel beside the deck. Clashing options are struck through and the die shrinks to what's left, a slot with one value left is set without a roll (with the reason on the card), and the pile sets aside cards whose family is taken, whose `needs` is missing, or that have no roll that fits. The set-aside list, with a reason for each card, is in the profile panel. Details and the interpretations behind the checks are in "Phase 3 as built".
 - **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
 - **Phase 6, done:** 3 modifier cards (96 in all): Re-roll, Flip and Free pick, marked with a new `modifier=` tag. Re-roll and Flip change a kept card, checked against the deck without it, and save over the old entry with a note of what it said before. Free pick gives a token for choosing the next option yourself. Consonant harmony now has a `[do/don't]`. Details and the interpretations behind them are in "Phase 6 as built".
-- **Phase 8, in progress:** motion and sound. The user chose arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and deck milestones. Session 1 of 6 is done and on the [preview page](https://claude.ai/artifact/QcHr6yG52pxqmynRCPPMHv). See "Motion and sound".
+- **Phase 8, in progress:** motion and sound. The user chose arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and deck milestones. Sessions 1 and 2 of 6 are done and on the [preview page](https://claude.ai/artifact/QcHr6yG52pxqmynRCPPMHv). See "Motion and sound".
 - **Next step:** build Phase 8 one session at a time, starting with the first session not marked done under "Sessions" in "Motion and sound". Each session republishes the preview page; the live page changes only in the last one. Separately, the user plays the game layer and checks the interpretations under "Phase 7 as built", then tunes `copies=` and the curse wording in Edit cards. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check too. Beyond Phase 8, nothing is planned; see "Open questions" and "More ideas".
 
 ## Summary
@@ -217,7 +217,7 @@ Preview page: https://claude.ai/artifact/QcHr6yG52pxqmynRCPPMHv
 | Session | What it builds | Main code | Status |
 | --- | --- | --- | --- |
 | 1. Foundations | Overlay canvas, shake, floating text, the Effects setting, reduced-motion handling and the sound engine. Sounds wired to the moments that already exist. First preview publish. | New effects section after the Dice marker, `clack`, wiring | Done |
-| 2. Dice and values | Impacts, the landing burst and number pop, the cut pause, the trail and stamp, the strike and die countdown. | `Die`, `onSlotResult`, `choose`, `fly`, `liveSlot` | Not started |
+| 2. Dice and values | Impacts, the landing burst and number pop, the cut pause, the trail and stamp, the strike and die countdown. | `Die`, `onSlotResult`, `choose`, `fly`, `liveSlot` | Done |
 | 3. Cards | The draw lift and snap, the complete pulse, keeping into the real deck slot with confetti, the discard fling, profile chips lighting up, and the pile fix. | `renderCurrent`, `keep`, `discard`, `renderDeck`, `renderProfile`, `renderPile` | Not started |
 | 4. Game layer | Tokens flying in and out, the cap rattle, the Discard token breaking, curses (taken, the active tint, the cursed flicker, ending) and Cleanse. | `takeToken`, `useToken`, `rerollInPlay`, `cleanse`, `takeCurse`, `tickCurses`, `renderTokens` | Not started |
 | 5. Highlights | Rare outcomes, the top face and milestones, with their sounds. | `onSlotResult`, `keep`, `optionFreq` | Not started |
@@ -243,6 +243,7 @@ Preview page: https://claude.ai/artifact/QcHr6yG52pxqmynRCPPMHv
 
 - Cutting the 0.65s pause isn't enough to stop effects holding up input. `state.busy` also stays on during the 0.56s value flight. Fill the value in at once and make the flying chip visual only. `choose` has the same problem, with its own 0.25s pause.
 - Rolls that get thrown again (above the list length, or the first roll of Long odds) still get a landing burst, but they don't fill anything in.
+- As built: `fillSlot` puts the value on the card and moves play on at once, and `state.busy` no longer stays on during a value's flight. The blank keeps its value hidden (`c.incoming`, not saved) until the chip lands, and the complete glow and chord wait for the last chip. A die that just landed fades over the next one (`Die.retire`) so its result can finish popping. The prompt no longer pauses on the result, so a small line above it says what the last roll came to (`promptSaid`). Sparks and the tray jolt start at a wall hit of 1100 px per second (`WALL_HARD`). The user can change these small choices: squash, shadow, the chip, the strikes and the countdown count as cards and dice moving, so they stay with Effects off and only reduced motion stops them; the chip's flight went from 0.56s to 0.4s; the countdown shows at most 8 steps, so a big drop skips numbers; the strikes and countdown play once per die size on a card, not after a reload or on Roll instead.
 
 **Session 3**
 

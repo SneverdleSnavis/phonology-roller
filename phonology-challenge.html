@@ -200,12 +200,13 @@ button { font: inherit; color: inherit; }
 .slot.done { border-color: transparent; min-width: 0; padding: 0 1px; }
 .slot.done .val { font-weight: 700; font-style: italic; color: var(--suit); }
 .slot.done sup { font-family: var(--f-mono); font-size: 10px; color: var(--muted); font-style: normal; }
-.slot.pop { animation: pop .4s ease-out; }
+.slot.incoming > * { visibility: hidden; } /* the value is set, and its chip is still on the way */
+.slot.stamp { animation: stamp .3s ease-out; }
 .cond { border-radius: 4px; padding: 1px 3px; background: color-mix(in srgb, var(--suit) 9%, transparent); }
 .cond .if { font-family: var(--f-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-right: 4px; }
 .cond.off { background: none; opacity: .45; text-decoration: line-through; }
 @keyframes pulse { 50% { transform: translateY(-2px) scale(1.08); } }
-@keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes stamp { 0% { transform: scale(1.7); opacity: .4; } 55% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1); } }
 
 .card-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .card-actions .progress { font-family: var(--f-mono); font-size: 12px; color: var(--muted); flex-basis: 100%; }
@@ -239,8 +240,8 @@ button { font: inherit; color: inherit; }
 }
 .die:active { cursor: grabbing; }
 .die.loose { --ds: 70px; }
-.die-body { position: absolute; inset: 0; display: block; }
-.die svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 7px 6px rgba(0, 0, 0, .38)); }
+.die-body { position: absolute; inset: 0; display: block; filter: drop-shadow(0 7px 6px rgba(0, 0, 0, .38)); }
+.die svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .die-face {
   position: absolute; left: 0; right: 0; top: var(--fy, 50%); transform: translateY(-50%); text-align: center;
   font-family: var(--f-mono); font-weight: 500; font-size: calc(var(--ds) * .32); color: var(--die-ink); line-height: 1; pointer-events: none;
@@ -253,10 +254,12 @@ button { font: inherit; color: inherit; }
 .die.landed .die-body { animation: land .35s ease-out; }
 .die.landed .die-face { font-weight: 500; }
 .die.spent { cursor: default; }
+.die.popping .die-face { text-shadow: 0 0 3px var(--ivory), 0 0 3px var(--ivory), 0 0 8px var(--ivory); }
 @keyframes bob { 50% { transform: translateY(-5px); } }
 @keyframes land { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
 .prompt { display: grid; gap: 4px; min-height: 52px; }
+.prompt .said { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
 .prompt .lead { font-family: var(--f-display); font-weight: 600; font-size: 19px; line-height: 1.25; text-wrap: balance; }
 .prompt .sub { color: var(--muted); font-size: 15px; font-style: italic; }
 .strip { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -374,7 +377,12 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
 .card-notes[hidden], .card-actions[hidden] { display: none; }
 .slot.done.forced .val { text-decoration: underline dotted; text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
 .opt.off { opacity: .6; background: transparent; border-style: dashed; cursor: help; }
-.opt.off s { text-decoration-thickness: 1.5px; }
+.opt.off s { text-decoration: none; position: relative; }
+.opt.off s::after { content: ""; position: absolute; left: -2px; right: -2px; top: 52%; height: 1.5px; background: currentColor; transform-origin: left center; }
+.opt.off.striking { animation: strike-dim .2s ease-out var(--strike-at, 0ms) backwards; }
+.opt.off.striking s::after { animation: strike .2s ease-out var(--strike-at, 0ms) backwards; }
+@keyframes strike { from { transform: scaleX(0); } }
+@keyframes strike-dim { from { opacity: 1; } }
 .opt.num { font-family: var(--f-mono); font-size: 12px; padding: 2px 6px; min-width: 28px; justify-content: center; }
 /* Modifier cards and Free pick: options and kept cards you pick by tapping */
 button.opt.pick { cursor: pointer; font-family: var(--f-text); color: var(--ink); }
@@ -2377,8 +2385,11 @@ function fxFrame(now) {
   fxCtx.globalAlpha = 1;
   fxRaf = fxParts.length ? requestAnimationFrame(fxFrame) : 0;
 }
+// The suit colour of the card in play, as a colour the canvas can use.
+const suitColor = () => getComputedStyle(document.body).getPropertyValue("--suit").trim() || "--accent";
 // A burst at a point on the screen. color is one colour or several, each a CSS colour or a token like "--suit-2".
-function fxBurst(x, y, { color = "--accent", n = 18, speed = 280, life = 0.6, size = 3, gravity = 520, drag = 2.2 } = {}) {
+// With angle (radians) the burst aims that way, within spread; without it, it goes all ways.
+function fxBurst(x, y, { color = "--accent", n = 18, speed = 280, life = 0.6, size = 3, gravity = 520, drag = 2.2, angle = null, spread = 1.6 } = {}) {
   if (!fxOn()) return;
   if (!fxCanvas) {
     fxCanvas = document.createElement("canvas");
@@ -2389,7 +2400,7 @@ function fxBurst(x, y, { color = "--accent", n = 18, speed = 280, life = 0.6, si
   const root = getComputedStyle(document.documentElement);
   const colors = [].concat(color).map((c) => (c.startsWith("--") ? root.getPropertyValue(c).trim() : c));
   for (let i = 0; i < n && fxParts.length < FX_MAX; i++) {
-    const a = Math.random() * Math.PI * 2, sp = speed * (0.35 + Math.random() * 0.65), l = life * (0.6 + Math.random() * 0.4);
+    const a = angle == null ? Math.random() * Math.PI * 2 : angle + (Math.random() - 0.5) * spread, sp = speed * (0.35 + Math.random() * 0.65), l = life * (0.6 + Math.random() * 0.4);
     fxParts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, left: l, life: l, gravity, drag,
       size: size * (0.6 + Math.random() * 0.8), color: colors[i % colors.length] });
   }
@@ -2434,6 +2445,8 @@ function fxClear() {
   fxShakes.forEach((a) => a.cancel()); fxShakes.clear();
   document.querySelectorAll(".fx-float").forEach((el) => el.remove());
 }
+
+const WALL_HARD = 1100; // how fast a die must hit a wall, in px per second, for sparks and a jolt
 
 class Die {
   // faces: the numbers printed on a die that rolls only some values (face n shows faces[n - 1]).
@@ -2519,7 +2532,7 @@ class Die {
     this.vx = vx * k; this.vy = vy * k;
     this.av = (Math.random() < 0.5 ? -1 : 1) * (500 + Math.random() * 700);
     this.result = rollValue(this.sides);
-    this.rolling = true; this.dist = 0; this.nextFlip = 0; this.t0 = performance.now(); this.lt = this.t0; this.flipPhase = 0;
+    this.rolling = true; this.dist = 0; this.nextFlip = 0; this.t0 = performance.now(); this.lt = this.t0; this.flipPhase = 0; this.squash = 0;
     this.el.classList.remove("waiting", "landed");
     sfx("clack", 0.5);
     if (RM) { this.showFace(this.result); this.finish(); return; }
@@ -2530,11 +2543,17 @@ class Die {
     const { W, H, S } = this.bounds();
     const maxX = Math.max(0, W - S), maxY = Math.max(0, H - S - 18);
     this.x += this.vx * dt; this.y += this.vy * dt;
-    const bounce = (v) => { sfx("clack", Math.min(1, Math.abs(v) / 2000)); this.av = -this.av * 0.8 + (Math.random() - 0.5) * 300; };
-    if (this.x < 0) { this.x = 0; bounce(this.vx); this.vx = -this.vx * 0.62; }
-    if (this.x > maxX) { this.x = maxX; bounce(this.vx); this.vx = -this.vx * 0.62; }
-    if (this.y < 0) { this.y = 0; bounce(this.vy); this.vy = -this.vy * 0.62; }
-    if (this.y > maxY) { this.y = maxY; bounce(this.vy); this.vy = -this.vy * 0.62; }
+    const bounce = (v, axis, far) => {
+      const hit = Math.abs(v);
+      sfx("clack", Math.min(1, hit / 2000));
+      this.av = -this.av * 0.8 + (Math.random() - 0.5) * 300;
+      this.squash = Math.min(0.28, hit / 2000 * 0.28); this.squashX = axis === "x";
+      if (hit > WALL_HARD) this.wallHit(axis, far, hit);
+    };
+    if (this.x < 0) { this.x = 0; bounce(this.vx, "x", false); this.vx = -this.vx * 0.62; }
+    if (this.x > maxX) { this.x = maxX; bounce(this.vx, "x", true); this.vx = -this.vx * 0.62; }
+    if (this.y < 0) { this.y = 0; bounce(this.vy, "y", false); this.vy = -this.vy * 0.62; }
+    if (this.y > maxY) { this.y = maxY; bounce(this.vy, "y", true); this.vy = -this.vy * 0.62; }
     const f = Math.exp(-2.5 * dt);
     this.vx *= f; this.vy *= f; this.av *= Math.exp(-2.1 * dt);
     this.rot += this.av * dt;
@@ -2547,20 +2566,58 @@ class Die {
     let sx = 1;
     if (this.kind === "choice") { this.flipPhase += sp * dt / 22; sx = Math.cos(this.flipPhase); }
     this.apply(sx);
+    // Squashed against the wall it just hit, and its shadow further away the faster it goes.
+    const q = this.squash;
+    this.body.style.transform = q > 0.005 ? (this.squashX ? `scale(${(1 - q).toFixed(3)}, ${(1 + q * 0.6).toFixed(3)})` : `scale(${(1 + q * 0.6).toFixed(3)}, ${(1 - q).toFixed(3)})`) : "";
+    this.squash *= Math.exp(-16 * dt);
+    const lift = Math.min(1, sp / 2000);
+    this.body.style.filter = `drop-shadow(0 ${(7 + lift * 16).toFixed(1)}px ${(6 + lift * 12).toFixed(1)}px rgba(0, 0, 0, ${(0.38 - lift * 0.1).toFixed(2)}))`;
     if (sp < 45 || t - this.t0 > 2800) this.finish();
     else requestAnimationFrame((tt) => this.step(tt));
   }
+  // A hard hit on a wall: sparks thrown back into the tray from where it hit, and the tray jolts.
+  wallHit(axis, far, hit) {
+    if (!fxOn()) return;
+    const r = this.tray.getBoundingClientRect(), S = this.size(), k = Math.min(1, (hit - WALL_HARD) / 1500);
+    const x = axis === "x" ? (far ? this.x + S : this.x) : this.x + S / 2;
+    const y = axis === "y" ? (far ? this.y + S : this.y) : this.y + S / 2;
+    fxBurst(r.left + x, r.top + y, { color: ["--ivory", "#ffcf70"], n: Math.round(8 + k * 10), speed: 240 + k * 240, life: 0.42, size: 2.4, gravity: 300,
+      angle: axis === "x" ? (far ? Math.PI : 0) : (far ? -Math.PI / 2 : Math.PI / 2), spread: 2.2 });
+    fxShake(0.22 + k * 0.38, this.tray);
+  }
+  // The result jumps off the die, big, then settles. This runs on every landing, thrown again or not.
+  landingFlourish() {
+    this.landedAt = performance.now();
+    if (!fxOn()) return;
+    const r = this.el.getBoundingClientRect(), len = this.face.textContent.length, big = len <= 2 ? 2.6 : len <= 5 ? 2 : 1.5;
+    fxBurst(r.left + r.width / 2, r.top + r.height / 2, { color: [suitColor(), suitColor(), "--ivory"], n: 24, speed: 330, life: 0.55, size: 3.2 });
+    this.el.classList.add("popping");
+    this.face.animate([
+      { transform: "translateY(-50%) scale(1)" },
+      { transform: `translateY(-50%) scale(${big})`, offset: 0.3 },
+      { transform: "translateY(-50%) scale(1)" },
+    ], { duration: 460, easing: "ease-out" }).onfinish = () => this.el.classList.remove("popping");
+  }
   finish() {
     this.rolling = false;
+    this.body.style.transform = ""; this.body.style.filter = "";
     this.showFace(this.result);
     const target = Math.round(this.rot / this.sym) * this.sym;
     if (!RM) this.svg.animate([{ transform: `rotate(${this.rot}deg)` }, { transform: `rotate(${target}deg)` }], { duration: 260, easing: "ease-out" });
     this.rot = target; this.apply(1);
     void this.el.offsetWidth; this.el.classList.add("landed");
     sfx("thunk");
+    this.landingFlourish();
     if (this.onResult) this.onResult(this.result, this);
   }
   remove() { this.el.remove(); }
+  // Taken off the tray. A die that has only just landed fades on top of the next one, so its result can finish popping.
+  retire() {
+    this.locked = true;
+    if (RM || !(performance.now() - this.landedAt < 700)) return this.remove();
+    this.el.disabled = true; this.el.style.zIndex = 2; this.el.style.pointerEvents = "none";
+    this.el.animate([{ opacity: 1 }, { opacity: 1, offset: 0.6 }, { opacity: 0 }], { duration: 700, fill: "forwards" }).onfinish = () => this.remove();
+  }
 }
 
 /* ---------- App state ---------- */
@@ -2783,7 +2840,10 @@ function renderCurrent(animateFrom) {
 function updateRule() {
   const c = state.current; if (!c) { renderTokens(); return; }
   const rule = document.getElementById("rule");
-  if (rule) rule.innerHTML = ruleHTML(c.card, c.values, c.idx);
+  if (rule) {
+    rule.innerHTML = ruleHTML(c.card, c.values, c.idx);
+    if (c.incoming) for (const j of c.incoming) { const el = rule.querySelector(`.slot[data-i="${j}"]`); if (el) el.classList.add("incoming"); }
+  }
   const done = c.card.slots.filter((_, i) => c.values[i]).length, total = c.card.slots.length;
   const m = c.mod, changing = m && m.step === "change";
   const complete = c.powerup ? true : m ? changing && c.idx === -1 : c.idx === -1;
@@ -2800,7 +2860,7 @@ function updateRule() {
   disc.setAttribute("aria-disabled", String(!can));
   disc.title = m ? "Put the token back without using it." : paid ? (can ? "Spends a Discard token." : "Discarding costs a Discard token, and you don't have one.") : "";
   const card = $("cardSlot").querySelector(".card");
-  if (card) card.classList.toggle("complete", complete && !c.powerup);
+  if (card) card.classList.toggle("complete", complete && !c.powerup && !(c.incoming && c.incoming.size));
   if (m && m.step === "slot" && c.target && rule) {
     for (const sl of c.target.slots) { const el = rule.querySelector(`.slot[data-i="${sl.i}"]`); if (el) { el.classList.add("pickable"); el.title = "Re-roll this die"; } }
   }
@@ -2883,7 +2943,7 @@ function advance(first) {
   c.idx = next;
   saveInPlay();
   updateRule();
-  if (next === -1) { if (!first) sfx("chord"); setTrayDone(); return; }
+  if (next === -1) { if (!first && !(c.incoming && c.incoming.size)) sfx("chord"); setTrayDone(); return; }
   setTrayForSlot(liveSlot(c, next), first);
 }
 // The slot as the tray rolls it. A phoneme pool becomes a pick from the hand dealt for it, and a slot with
@@ -3311,7 +3371,8 @@ function pileNews(before) {
 }
 
 /* ---------- Tray ---------- */
-function clearDice() { state.dice.forEach((d) => d.remove()); state.dice = []; }
+let trayLive = false; // false while saved state loads, so a reload doesn't replay anything
+function clearDice() { state.dice.forEach((d) => d.retire()); state.dice = []; }
 function setTrayIdle() {
   clearDice();
   const tray = $("tray");
@@ -3432,6 +3493,36 @@ function setTrayForSlot(slot, first) {
   }
   $("strip").innerHTML = strip;
   $("why").innerHTML = whyHTML(slot);
+  playShrink(c, slot, d, first);
+}
+// The first time a shrunk slot is set up: the strikes draw across the crossed-out options one by one, and the die
+// counts down to its new size. It's all for show. The die is already the smaller one and can be thrown at any point.
+function playShrink(c, slot, die, first) {
+  if (!slot.crossed || !slot.crossed.length) return;
+  const shown = c.shrunk || (c.shrunk = {});
+  if (shown[c.idx] === slot.sides) return;
+  shown[c.idx] = slot.sides;
+  if (RM || !trayLive) return;
+  const start = first ? 650 : 120, off = [...$("strip").querySelectorAll(".opt.off")], gap = Math.min(45, 480 / Math.max(1, off.length));
+  off.forEach((el, k) => { el.style.setProperty("--strike-at", Math.round(start + k * gap) + "ms"); el.classList.add("striking"); });
+  if (die) countDown(die, slot, start);
+}
+function countDown(d, slot, start) {
+  const from = slot.origSides, to = slot.sides, steps = Math.min(from - to, 8), gap = Math.min(110, 560 / steps);
+  const tag = d.el.querySelector(".die-tag"), mark = $("trayMark");
+  const show = (n) => { tag.textContent = "d" + n; if (state.dice.includes(d)) mark.textContent = "d" + n; };
+  const tick = (k) => {
+    if (d.rolling || d.locked || !state.dice.includes(d)) { show(to); return; }
+    const n = Math.round(from - ((from - to) * k) / steps);
+    show(n);
+    if (!d.faces) d.showFace(n);
+    sfx("tick");
+    d.body.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 100 });
+    if (k < steps) setTimeout(() => tick(k + 1), gap);
+  };
+  show(from);
+  if (!d.faces) d.showFace(from);
+  setTimeout(() => tick(1), start + gap);
 }
 // Free pick: every open option is a button, and the crossed-out ones stay struck through.
 function setTrayChoose(slot, first) {
@@ -3456,6 +3547,7 @@ function setTrayChoose(slot, first) {
   $("strip").innerHTML = strip;
   $("why").innerHTML = whyHTML(slot);
   if (first && !RM) $("strip").animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 500, fill: "backwards" });
+  playShrink(c, slot, null, first);
 }
 function setTrayDone() {
   if (state.current && state.current.mod) {
@@ -3481,6 +3573,8 @@ function setTrayDone() {
   $("keepBtn").focus({ preventScroll: true });
 }
 function setPrompt(lead, sub) { $("prompt").innerHTML = `<span class="lead">${esc(lead)}</span><span class="sub">${esc(sub)}</span>`; }
+// What the last roll came to, above whatever the prompt asks for next.
+function promptSaid(text) { const el = document.createElement("span"); el.className = "said"; el.textContent = text; $("prompt").prepend(el); }
 
 function onSlotResult(n, die) {
   const c = state.current; if (!c || c.idx < 0) return;
@@ -3527,20 +3621,35 @@ function onSlotResult(n, die) {
     const ops = (slot.mult > 1 ? ` × ${slot.mult}` : "") + (slot.offset ? ` ${slot.offset < 0 ? "−" : "+"} ${Math.abs(slot.offset)}` : "");
     said = `Rolled ${raw}${ops} = ${label}.`;
   } else said = `Rolled ${raw}.`;
-  setPrompt(said, "Filling it in…");
-  state.busy = true;
-  setTimeout(() => {
-    const target = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
-    fly(from, target, sym ? `/${sym}/` : label, () => {
-      c.values[i] = value;
-      state.busy = false;
-      sfx("tick");
-      updateRule();
-      const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
-      if (el) el.classList.add("pop");
-      advance(false);
-    });
-  }, RM ? 120 : 650);
+  fillSlot(c, i, value, from, sym ? `/${sym}/` : label, said);
+}
+// The value goes on the card now, and play moves on now. The chip only shows it arriving: the blank keeps the value
+// hidden (c.incoming) until the chip lands on it, so nothing waits for the flight.
+function fillSlot(c, i, value, fromEl, text, said) {
+  const from = fromEl && !RM ? fromEl.getBoundingClientRect() : null;
+  c.values[i] = value;
+  if (from) (c.incoming = c.incoming || new Set()).add(i);
+  advance(false);
+  promptSaid(said);
+  fly(from, $("cardSlot").querySelector(`.slot[data-i="${i}"]`), text, () => {
+    sfx("tick");
+    if (state.current !== c) return;
+    const flew = !!c.incoming && c.incoming.delete(i);
+    if (flew) updateRule();
+    const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
+    if (el && from) {
+      el.classList.add("stamp");
+      const r = el.getBoundingClientRect();
+      fxBurst(r.left + r.width / 2, r.top + r.height / 2, { color: suitColor(), n: 12, speed: 170, life: 0.4, size: 2.4, gravity: 240 });
+    }
+    if (flew && c.idx === -1 && !c.incoming.size) sfx("chord");
+  });
+}
+// Keeping or discarding while a chip is still in the air: show what it was carrying.
+function revealIncoming(c) {
+  if (!c.incoming || !c.incoming.size) return;
+  c.incoming.clear();
+  $("cardSlot").querySelectorAll(".slot.incoming").forEach((el) => el.classList.remove("incoming"));
 }
 // What face n of the live slot puts on the card. On a smaller die, face n stands for an open option (map)
 // or an open number (faces).
@@ -3565,25 +3674,12 @@ function choose(n, el) {
   spendToken(c.choosing);
   sfx("spend");
   c.choosing = false; c.lo = null;
-  renderTokens();
-  el.classList.add("hit");
-  setPrompt(`You chose ${label}.`, "Filling it in…");
-  state.busy = true;
-  setTimeout(() => {
-    fly(el, $("cardSlot").querySelector(`.slot[data-i="${i}"]`), sym ? `/${sym}/` : label, () => {
-      c.values[i] = value;
-      state.busy = false;
-      sfx("tick");
-      updateRule();
-      const s2 = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
-      if (s2) s2.classList.add("pop");
-      advance(false);
-    });
-  }, RM ? 60 : 250);
+  fillSlot(c, i, value, el, sym ? `/${sym}/` : label, `You chose ${label}.`);
 }
-function fly(fromEl, toEl, text, done) {
-  if (RM || !fromEl || !toEl) { done(); return; }
-  const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+// A chip flying from a spot on the screen to an element, with a trail while Effects are on. For show only.
+function fly(a, toEl, text, done) {
+  if (RM || !a || !toEl) { done(); return; }
+  const b = toEl.getBoundingClientRect();
   const s = document.createElement("span");
   s.className = "flyer"; s.textContent = text;
   document.body.appendChild(s);
@@ -3595,12 +3691,24 @@ function fly(fromEl, toEl, text, done) {
     { transform: `translate(${x0}px, ${y0}px) scale(1)` },
     { transform: `translate(${mx}px, ${my}px) scale(1.2)`, offset: 0.5 },
     { transform: `translate(${x1}px, ${y1}px) scale(.9)` }
-  ], { duration: 560, easing: "cubic-bezier(.3,.6,.3,1)", fill: "forwards" });
-  anim.onfinish = () => { s.remove(); done(); };
+  ], { duration: 400, easing: "cubic-bezier(.3,.6,.3,1)", fill: "forwards" });
+  let flying = true;
+  if (fxOn()) {
+    const color = suitColor();
+    const trail = () => {
+      if (!flying) return;
+      const r = s.getBoundingClientRect();
+      fxBurst(r.left + r.width / 2, r.top + r.height / 2, { color, n: 2, speed: 45, life: 0.36, size: 2.6, gravity: 40 });
+      requestAnimationFrame(trail);
+    };
+    requestAnimationFrame(trail);
+  }
+  anim.onfinish = () => { flying = false; s.remove(); done(); };
 }
 
 function keep() {
   const c = state.current; if (!c || state.busy) return;
+  if (c.idx === -1) revealIncoming(c);
   if (c.mod) return useMod();
   if (c.powerup) return takeToken();
   if (c.idx !== -1) return;
@@ -3641,6 +3749,7 @@ function keep() {
 }
 function discard() {
   const c = state.current; if (!c || state.busy) return;
+  revealIncoming(c);
   if (c.mod) return cancelMod(); // a change can be cancelled until it starts, and not after
   if (c.powerup) return;
   // With the game layer on, a discard costs a Discard token.
@@ -4144,6 +4253,7 @@ if (!state.current) setTrayIdle();
 else if (state.current.powerup) setTrayForPowerup();
 else if (state.current.mod && state.current.mod.step !== "change") setTrayForMod();
 else advance(false);
+trayLive = true;
 connectStore();
 })();
 </script>
