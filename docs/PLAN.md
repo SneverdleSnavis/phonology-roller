@@ -1,6 +1,6 @@
 # Phonology Challenge: card expansion plan
 
-As of 2026-11-04 (Phase 7 done; every phase is built). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
+As of 2026-11-04 (Phases 1 to 7 built; Phase 8, motion and sound, is planned). Editable copy: [Claude Doc](https://claude.ai/artifact/6R1fk5PSq4ZNwtJ4TxJ9CR). This file is the repo snapshot of that doc; if they differ, ask which one is current.
 
 ## Where things stand
 
@@ -12,13 +12,14 @@ As of 2026-11-04 (Phase 7 done; every phase is built). Editable copy: [Claude Do
 - **Phase 3, done:** every built-in card that writes to the language now carries `effect`, `counts`, `feature` or `needs` tags. The profile is rebuilt from the deck on every change and shown in a panel beside the deck. Clashing options are struck through and the die shrinks to what's left, a slot with one value left is set without a roll (with the reason on the card), and the pile sets aside cards whose family is taken, whose `needs` is missing, or that have no roll that fits. The set-aside list, with a reason for each card, is in the profile panel. Details and the interpretations behind the checks are in "Phase 3 as built".
 - **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
 - **Phase 6, done:** 3 modifier cards (96 in all): Re-roll, Flip and Free pick, marked with a new `modifier=` tag. Re-roll and Flip change a kept card, checked against the deck without it, and save over the old entry with a note of what it said before. Free pick gives a token for choosing the next option yourself. Consonant harmony now has a `[do/don't]`. Details and the interpretations behind them are in "Phase 6 as built".
-- **Next step:** the user plays the game layer and checks the interpretations under "Phase 7 as built", then tunes `copies=` and the curse wording in Edit cards. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check too. Nothing else is planned; see "Open questions" and "More ideas".
+- **Phase 8, planned:** motion and sound. The user chose arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and deck milestones. See "Motion and sound".
+- **Next step:** build Phase 8 in the order under "Motion and sound", and publish it as a preview page first. Separately, the user plays the game layer and checks the interpretations under "Phase 7 as built", then tunes `copies=` and the curse wording in Edit cards. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check too. Beyond Phase 8, nothing is planned; see "Open questions" and "More ideas".
 
 ## Summary
 
 The roller gets a **language profile**: a running record of what your kept cards have committed the language to. The profile does three jobs. It removes impossible cards from the pile, it crosses out options that would contradict earlier cards, and it makes phoneme cards possible.
 
-Around that core, the plan adds six new card types, fills coverage gaps in the current 57 cards, and fixes cards whose wording or dice don't work. Work is split into seven phases, and the first one needs no profile at all.
+Around that core, the plan adds six new card types, fills coverage gaps in the current 57 cards, and fixes cards whose wording or dice don't work. Work is split into eight phases, and the first one needs no profile at all.
 
 ## Decisions made
 
@@ -159,6 +160,64 @@ These weren't settled. Each was given a default in the build; see "Phase 7 as bu
 - Curse "Heavy dice": number rolls take the higher of two.
 - Power-up "Peek": look at the top 3 cards of the pile and play one.
 - Power-up "Nudge": move a number roll up or down by 1.
+
+## Motion and sound
+
+Phase 8 makes the game feel punchy: arcade-style effects, a full sound set, and bigger moments for curses, tokens and rare rolls, without making a card slower to play. The user chose this on 2026-11-04.
+
+### Decided (2026-11-04)
+
+- **Arcade, juicy.** Impacts, particle bursts, screen shake on big moments and big floating text. Chosen over a weighty tabletop style and over subtle polish.
+- **A full sound set, on by default.** Every moment below gets a synthesized sound. Browsers allow sound only after the first tap or key press, so the first sound comes then. The Sound button still turns it off.
+- **Curses are a big moment.** Taking one shakes the page, sends a red pulse out from the card and slams in "CURSED". The tray stays tinted red while any curse is active, and a cursed card flickers red as it turns over.
+- **Flourishes for rare outcomes, the top face and deck milestones.** Not for big numbers in general, since a bigger number isn't better in this game.
+- **Faster, not slower.** Effects play on an overlay and never hold up input. The 0.65s pause between a die landing and its value flying to the card goes.
+- **Keep confetti scales.** A small burst on an ordinary keep and full confetti at a milestone, so 90-plus keeps don't wear it thin.
+- **An Effects setting** in the header next to Sound. Off: no shake, particles or floating text; cards and dice still move. A device set to reduce motion turns those off too.
+- **Still one file.** Sounds are synthesized with Web Audio and particles are drawn on one canvas, with no audio or image files.
+- **Preview first.** The build is published to a separate preview page, and replaces the live page only after the user has played it.
+
+### Moment by moment
+
+| Moment | What you see | Sound |
+| --- | --- | --- |
+| Draw | The top card lifts off the pile, then snaps into place with a slight bounce. A cursed card flickers red as it turns over. | Swish |
+| Die in flight | Hard wall hits shake the tray and throw sparks from the edge. The die squashes on impact, and its shadow grows with its speed. | Clack per hit, as now |
+| Die lands | A spark burst in the card's suit colour; the result pops out of the die big, then settles. | Thunk |
+| Value to card | No pause. The chip leaves a trail and stamps into its blank with a small burst. | Tick |
+| Card complete | The card pulses once and the Keep button wiggles. | Soft chord |
+| Keep | The card arcs into its real spot in the deck, which thumps and throws confetti. Profile chips that changed light up one by one. | Thunk and sparkle |
+| Discard | The card is flung off the board. With the game layer on, a Discard token visibly breaks. | Whoosh |
+| Token gained | A coin flies from the card into the Power-ups panel and "+1 Re-roll" floats up. At the cap, the held tokens rattle. | Chime |
+| Token spent | The token flies to what it acts on: the die for Re-roll, the kept card for Flip, the curse for Cleanse. | Falling chime |
+| Curse taken | The page shakes, a red pulse spreads from the card, "CURSED" slams in, and the badge drops into place. | Low tone |
+| Curse active | The tray stays faintly tinted red. | None |
+| Curse ends | The badge cracks and fades. Cleanse adds a bright sweep across it. | Crack; a bright rise for Cleanse |
+| Rare outcome | A gold "rare · 3% of languages" flare. | Shimmer |
+| Top face | A "max!" flare on the die. | Ding |
+| Milestone | Full confetti and a banner at 5, 10 and 20 kept cards. | Fanfare |
+| Crossed-out options | The strike draws across each option, and the die counts down (d12 to d9) before you roll. | Ticks as it counts |
+
+### Small details for the build session
+
+These weren't settled; each has a default the user can change.
+
+- *Rare* means under 10% of languages in PHOIBLE: a phoneme's own frequency, or a list option's from `optionFreq` (the one Long odds uses). Options with no frequency ("dorsal", "tone") never flare.
+- *Top face* is for number dice only, since a list's order means nothing. It's the highest face of the die actually rolled, so on a shrunk die it's the highest number still open.
+- *Milestones* play when the deck reaches 5, 10 or 20 cards.
+- *Settings:* Effects is saved in the browser as `pc.fx`, like `pc.sound`. Sound defaults to on, so anyone who never touched the Sound button hears it; anyone who turned it off keeps it off.
+- The pile's card back shows a ghost of the circle on the card under it. Fix it in this phase.
+
+### Build order
+
+1. Effects layer: the overlay canvas for particles, shake and floating text, the Effects setting and reduced-motion handling. The sound engine with the full set, on by default.
+2. Dice and values: impacts, the landing burst and number pop, the cut pause, the trail and stamp, the strike and die countdown.
+3. Cards: the draw lift and snap, the complete pulse, keeping into the real deck slot with confetti, the discard fling, profile chips lighting up, and the pile fix.
+4. Game layer: tokens flying in and out, the cap rattle, curses (taken, the active tint, the cursed flicker, ending) and Cleanse.
+5. Highlights: rare outcomes, the top face and milestones.
+6. Publish the preview page; replace the live page once the user is happy.
+
+Checking: `node scripts/check-cards.js` should report the same as before, since the effects sit after the Dice marker. One headless Playwright run per step, watching for page errors, with effects on, effects off and reduced motion.
 
 ## Gaps in the current cards
 
@@ -399,6 +458,8 @@ Each phase ships on its own and leaves the roller usable.
     3. The game-layer setting, Discard and Cleanse cards, and paid discards.
     4. Curse cards, the counter, and the pile filter judging cards as cursed. Exact count first, then Multiplier, then Long odds.
 
+8. **Motion and sound.** Arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and milestones. Planned; see "Motion and sound" for the decisions and build order.
+
 ## Open questions
 
 - [ ] A do/don't card where one side is crossed out has a forced result. Should it stay in the pile, or be set aside as a dud? For now it stays in the pile, and the coin is set without a flip with the reason shown under the card.
@@ -414,3 +475,7 @@ Each phase ships on its own and leaves the roller usable.
 - [x] Is there a limit on how many power-up tokens you can hold? Answered: 3 in all.
 - [x] How many copies of each power-up card? Answered: Discard 4, Free pick 3, Re-roll 2, Cleanse 2, Flip 1. Curses come in several copies too (starting at Exact count 3, Long odds 2, Multiplier 2).
 - [x] Should the new vowel height list use all seven IPA heights, or a simpler high/mid/low split? Answered: all seven, on a d7.
+- [x] How punchy should the game feel? Answered: arcade, juicy (particles, shake, big floating text), with an Effects setting to turn the extras off.
+- [x] Should there be a full sound set, on by default? Answered: yes to both.
+- [x] How dramatic should taking a curse be? Answered: a big moment, with the tray tinted while a curse is active.
+- [x] Which rolls get a flourish? Answered: rare outcomes, the top face of a number die, and deck milestones.
