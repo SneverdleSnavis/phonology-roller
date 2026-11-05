@@ -1,6 +1,6 @@
 # Phonology Challenge roller: working notes
 
-Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (Phases 1 to 7 are built; Phase 7 added curses and power-ups. Phase 8, motion and sound, is planned in "Motion and sound"). "Phase 3 as built", "Phase 5 as built", "Phase 6 as built" and "Phase 7 as built" explain the profile, the power-ups and curses, and the interpretations the user still has to confirm.
+Read `docs/PLAN.md` first. Its "Where things stand" section says what is built and what to do next (Phases 1 to 7 are built; Phase 7 added curses and power-ups. Phase 8, motion and sound, is planned in "Motion and sound" and built over six sessions: do the first one not marked done under "Sessions", and do only that one). "Phase 3 as built", "Phase 5 as built", "Phase 6 as built" and "Phase 7 as built" explain the profile, the power-ups and curses, and the interpretations the user still has to confirm.
 
 ## The app
 

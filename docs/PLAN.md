@@ -13,7 +13,7 @@ As of 2026-11-04 (Phases 1 to 7 built; Phase 8, motion and sound, is planned). E
 - **Phase 5, done:** 21 new cards (93 in all): two gap cards, templates for syllable size, codas and hiatus, four tone cards, rule-interaction and morphology cards, and cards for each coverage gap. Extrametricality now waits for a foot-based stress system. The new card wording is a first draft for the user to reword. Details and the new interpretations are in "Phase 5 as built".
 - **Phase 6, done:** 3 modifier cards (96 in all): Re-roll, Flip and Free pick, marked with a new `modifier=` tag. Re-roll and Flip change a kept card, checked against the deck without it, and save over the old entry with a note of what it said before. Free pick gives a token for choosing the next option yourself. Consonant harmony now has a `[do/don't]`. Details and the interpretations behind them are in "Phase 6 as built".
 - **Phase 8, planned:** motion and sound. The user chose arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and deck milestones. See "Motion and sound".
-- **Next step:** build Phase 8 in the order under "Motion and sound", and publish it as a preview page first. Separately, the user plays the game layer and checks the interpretations under "Phase 7 as built", then tunes `copies=` and the curse wording in Edit cards. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check too. Beyond Phase 8, nothing is planned; see "Open questions" and "More ideas".
+- **Next step:** build Phase 8 one session at a time, starting with the first session not marked done under "Sessions" in "Motion and sound". Each session republishes the preview page; the live page changes only in the last one. Separately, the user plays the game layer and checks the interpretations under "Phase 7 as built", then tunes `copies=` and the curse wording in Edit cards. The interpretations under "Phase 3 as built", "Phase 5 as built" and "Phase 6 as built" still need the user's check too. Beyond Phase 8, nothing is planned; see "Open questions" and "More ideas".
 
 ## Summary
 
@@ -208,16 +208,64 @@ These weren't settled; each has a default the user can change.
 - *Settings:* Effects is saved in the browser as `pc.fx`, like `pc.sound`. Sound defaults to on, so anyone who never touched the Sound button hears it; anyone who turned it off keeps it off.
 - The pile's card back shows a ghost of the circle on the card under it. Fix it in this phase.
 
-### Build order
+### Sessions
 
-1. Effects layer: the overlay canvas for particles, shake and floating text, the Effects setting and reduced-motion handling. The sound engine with the full set, on by default.
-2. Dice and values: impacts, the landing burst and number pop, the cut pause, the trail and stamp, the strike and die countdown.
-3. Cards: the draw lift and snap, the complete pulse, keeping into the real deck slot with confetti, the discard fling, profile chips lighting up, and the pile fix.
-4. Game layer: tokens flying in and out, the cap rattle, curses (taken, the active tint, the cursed flicker, ending) and Cleanse.
-5. Highlights: rare outcomes, the top face and milestones.
-6. Publish the preview page; replace the live page once the user is happy.
+Phase 8 is built over six sessions, in this order. Each one leaves the game working and adds something new to play on the preview page.
 
-Checking: `node scripts/check-cards.js` should report the same as before, since the effects sit after the Dice marker. One headless Playwright run per step, watching for page errors, with effects on, effects off and reduced motion.
+| Session | What it builds | Main code | Status |
+| --- | --- | --- | --- |
+| 1. Foundations | Overlay canvas, shake, floating text, the Effects setting, reduced-motion handling and the sound engine. Sounds wired to the moments that already exist. First preview publish. | New effects section after the Dice marker, `clack`, wiring | Not started |
+| 2. Dice and values | Impacts, the landing burst and number pop, the cut pause, the trail and stamp, the strike and die countdown. | `Die`, `onSlotResult`, `choose`, `fly`, `liveSlot` | Not started |
+| 3. Cards | The draw lift and snap, the complete pulse, keeping into the real deck slot with confetti, the discard fling, profile chips lighting up, and the pile fix. | `renderCurrent`, `keep`, `discard`, `renderDeck`, `renderProfile`, `renderPile` | Not started |
+| 4. Game layer | Tokens flying in and out, the cap rattle, the Discard token breaking, curses (taken, the active tint, the cursed flicker, ending) and Cleanse. | `takeToken`, `useToken`, `rerollInPlay`, `cleanse`, `takeCurse`, `tickCurses`, `renderTokens` | Not started |
+| 5. Highlights | Rare outcomes, the top face and milestones, with their sounds. | `onSlotResult`, `keep`, `optionFreq` | Not started |
+| 6. Feedback and go live | The user's fixes from playing the preview, then the live page is replaced once they're happy. | Whatever the feedback touches | Not started |
+
+**Every session**
+
+- Start by reading this section and the decisions above. Start from any feedback the user has given on the preview.
+- Finish by running `node scripts/check-cards.js`, which should report the same as before, since the effects sit after the Dice marker. Then do one headless Playwright run with effects on, effects off and reduced motion, watching for page errors.
+- Then commit, republish the same preview page, and mark the session's status here and in the other copy of the plan.
+- A headless run only catches errors. The user judges the look and sound on the preview page.
+
+**Session 1**
+
+- The sound engine replaces `clack`, and `pc.sound` now defaults to on.
+- Today `RM` is the only motion check. This session adds a second one: Effects off or reduced motion stops the extras, while cards and dice still move unless reduced motion is on.
+- Wire each sound here so there is something to hear straight away. Only the crossed-out ticks (session 2) and the highlight sounds (session 5) wait.
+- Publish without `url` to make the preview page, with capabilities `{db: {}, user: {}}`, and write its link in this section. Never publish to the live page before session 6.
+- The preview has its own storage, so it starts with an empty deck and can't touch the user's real one.
+
+**Session 2**
+
+- Cutting the 0.65s pause isn't enough to stop effects holding up input. `state.busy` also stays on during the 0.56s value flight. Fill the value in at once and make the flying chip visual only. `choose` has the same problem, with its own 0.25s pause.
+- Rolls that get thrown again (above the list length, or the first roll of Long odds) still get a landing burst, but they don't fill anything in.
+
+**Session 3**
+
+- `keep` adds the entry only after its animation, and aims at the top of the deck. To land in the real slot, add the entry first, keep it hidden, measure its spot, fly there, then reveal it. New entries are always last in the deck.
+- Release `state.busy` at the start of the flight in `keep` and `discard`, as in session 2.
+- `renderDeck` and `renderProfile` rebuild from scratch, so lighting up changed chips needs a comparison of the profile before and after.
+- Check the flight at phone width, where the deck slot can be off screen.
+- Drawing shouldn't take longer than it does now: the flip is 0.9s, and the first die and the strip wait for it.
+
+**Session 4**
+
+- The tray tint comes from `state.curses`, so it is back after a reload. "CURSED" and the coin effects play only on the action itself, never when saved state loads.
+- `renderTokens` rebuilds the row, so measure a token's position before it re-renders.
+- Session 3 flings the discarded card. This session adds the token breaking.
+
+**Session 5**
+
+- Flares only for values that were rolled. A Free pick or a value set without a roll doesn't flare. The user can change this default.
+- On a shrunk die, the top face is the highest of `slot.faces`.
+- Milestones play only when keeping a card brings the deck to 5, 10 or 20, never on load or sync. Falling below a milestone and reaching it again plays it again. The user can change this default too.
+- Rare needs a phoneme's own frequency as well as `optionFreq`.
+
+**Session 6**
+
+- This session waits until the user has played the preview. Follow "The app" in `CLAUDE.md` to read and republish the live page.
+- Publishing replaces the code only. The user's deck, kept in the live page's own storage, stays.
 
 ## Gaps in the current cards
 
@@ -458,7 +506,7 @@ Each phase ships on its own and leaves the roller usable.
     3. The game-layer setting, Discard and Cleanse cards, and paid discards.
     4. Curse cards, the counter, and the pile filter judging cards as cursed. Exact count first, then Multiplier, then Long odds.
 
-8. **Motion and sound.** Arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and milestones. Planned; see "Motion and sound" for the decisions and build order.
+8. **Motion and sound.** Arcade-style effects, a full sound set on by default, big curse moments, and flourishes for rare outcomes, the top face and milestones. Planned over six sessions; see "Motion and sound" for the decisions and the sessions.
 
 ## Open questions
 
