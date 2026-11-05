@@ -64,6 +64,7 @@ body {
   line-height: 1.5;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-x: clip; /* a page shake mustn't flash a sideways scrollbar */
 }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -349,6 +350,12 @@ dialog::backdrop { background: rgba(10, 12, 22, .55); }
   font-family: var(--f-text); font-weight: 700; font-style: italic; font-size: 20px; color: var(--paper);
   background: var(--suit); padding: 2px 10px; border-radius: 6px; box-shadow: var(--shadow);
 }
+.fx-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 65; pointer-events: none; }
+.fx-float {
+  position: fixed; left: 0; top: 0; z-index: 66; pointer-events: none; white-space: nowrap;
+  font-family: var(--f-display); font-weight: 800; line-height: 1.1;
+  text-shadow: 0 0 2px var(--paper), 0 0 2px var(--paper), 0 1px 8px var(--paper);
+}
 .toast {
   position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px);
   background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 8px; font-size: 15px;
@@ -463,7 +470,8 @@ button.opt.pick.hit { background: var(--suit); color: var(--paper); }
     <div class="top-actions">
       <span class="status" id="status" data-mode="local">Saved in this browser</span>
       <button class="btn ghost" id="gameBtn" aria-pressed="true" type="button">Game layer on</button>
-      <button class="btn ghost" id="soundBtn" aria-pressed="false" type="button">Sound off</button>
+      <button class="btn ghost" id="soundBtn" aria-pressed="true" type="button">Sound on</button>
+      <button class="btn ghost" id="fxBtn" aria-pressed="true" type="button">Effects on</button>
       <button class="btn" id="editBtn" type="button">Edit cards</button>
     </div>
   </header>
@@ -2267,20 +2275,164 @@ function shapeFor(slotKind, sides) {
   }
 }
 
-let audio = null, soundOn = ls.get("pc.sound", false);
-function clack(strength) {
-  if (!soundOn) return;
+/* ---------- Sound ----------
+   Every sound is synthesized, so there are no audio files. Browsers allow sound only after a tap or key press,
+   so nothing is made until the first one, and the context is resumed on each one in case the device paused it. */
+let audio = null, audioOut = null, noiseBuf = null, gestured = false, soundOn = ls.get("pc.sound", true);
+const lastPlayed = {};
+function audioReady() {
+  if (!soundOn || !gestured) return false;
   try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    const t = audio.currentTime, len = 0.045;
-    const buf = audio.createBuffer(1, Math.floor(audio.sampleRate * len), audio.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
-    const src = audio.createBufferSource(); src.buffer = buf;
-    const bp = audio.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1800 + Math.random() * 1600; bp.Q.value = 3;
-    const g = audio.createGain(); g.gain.value = Math.min(0.5, 0.08 + strength * 0.4);
-    src.connect(bp); bp.connect(g); g.connect(audio.destination); src.start(t);
-  } catch {}
+    if (!audio) {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      const limiter = audio.createDynamicsCompressor();
+      limiter.threshold.value = -10; limiter.ratio.value = 8;
+      limiter.connect(audio.destination);
+      audioOut = audio.createGain(); audioOut.connect(limiter);
+      noiseBuf = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (audio.state !== "running") audio.resume().catch(() => {});
+    return true;
+  } catch { return false; }
+}
+for (const type of ["pointerdown", "pointerup", "touchend", "keydown"]) {
+  addEventListener(type, () => { gestured = true; audioReady(); }, { capture: true, passive: true });
+}
+// A quick rise to gain, then a fall to silence by the end of len.
+function envelope(t, gain, len, attack) {
+  const g = audio.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+  g.connect(audioOut);
+  return g;
+}
+function tone(freq, len, { type = "sine", to, gain = 0.1, at = 0, attack = 0.005 } = {}) {
+  const t = audio.currentTime + at, o = audio.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (to) o.frequency.exponentialRampToValueAtTime(to, t + len);
+  o.connect(envelope(t, gain, len, attack));
+  o.start(t); o.stop(t + len + 0.02);
+}
+function hiss(len, { type = "bandpass", freq = 1800, to, q = 1, gain = 0.2, at = 0, attack = 0.002 } = {}) {
+  const t = audio.currentTime + at, src = audio.createBufferSource(), f = audio.createBiquadFilter();
+  src.buffer = noiseBuf;
+  f.type = type; f.Q.value = q;
+  f.frequency.setValueAtTime(freq, t);
+  if (to) f.frequency.exponentialRampToValueAtTime(to, t + len);
+  src.connect(f); f.connect(envelope(t, gain, len, attack));
+  src.start(t, Math.random() * Math.max(0, 1 - len - 0.05)); src.stop(t + len + 0.02);
+}
+const SOUNDS = {
+  clack(strength = 0.5) { hiss(0.045, { freq: 1800 + Math.random() * 1600, q: 3, gain: Math.min(0.75, 0.12 + strength * 0.6), attack: 0.001 }); },
+  swish() { hiss(0.2, { freq: 500, to: 2600, q: 0.9, gain: 0.32, attack: 0.06 }); },
+  thunk() { tone(150, 0.13, { to: 65, gain: 0.4 }); hiss(0.03, { type: "lowpass", freq: 900, gain: 0.18, attack: 0.001 }); },
+  tick() { tone(1900, 0.035, { type: "triangle", gain: 0.12, attack: 0.001 }); },
+  chord() { [523.25, 659.25, 783.99].forEach((f, i) => tone(f, 0.6, { type: "triangle", gain: 0.07, at: i * 0.035, attack: 0.02 })); },
+  keep() { SOUNDS.thunk(); [1568, 2093, 2637, 3136].forEach((f, i) => tone(f, 0.22, { gain: 0.05, at: 0.05 + i * 0.05 })); },
+  whoosh() { hiss(0.3, { freq: 2200, to: 280, q: 0.8, gain: 0.22, attack: 0.05 }); },
+  chime() { tone(880, 0.35, { gain: 0.09 }); tone(1318.5, 0.5, { gain: 0.09, at: 0.08 }); tone(2637, 0.3, { gain: 0.025, at: 0.08 }); },
+  spend() { [1318.5, 987.77, 659.25].forEach((f, i) => tone(f, 0.28, { gain: 0.08, at: i * 0.07 })); },
+  curse() { tone(98, 1.1, { type: "sawtooth", to: 49, gain: 0.13, attack: 0.02 }); tone(49, 1.1, { gain: 0.35, attack: 0.02 }); hiss(0.5, { type: "lowpass", freq: 300, gain: 0.2, attack: 0.01 }); },
+  crack() { hiss(0.05, { type: "highpass", freq: 2500, gain: 0.3, attack: 0.001 }); hiss(0.09, { type: "highpass", freq: 1400, gain: 0.18, at: 0.045, attack: 0.001 }); },
+  cleanse() { SOUNDS.crack(); tone(520, 0.5, { to: 2080, gain: 0.11, attack: 0.05 }); tone(780, 0.5, { to: 3120, gain: 0.05, at: 0.03, attack: 0.05 }); },
+};
+function sfx(name, arg) {
+  if (!audioReady()) return;
+  const now = performance.now();
+  if (now - (lastPlayed[name] || -1e3) < 25) return; // the same sound twice in a moment only adds volume
+  lastPlayed[name] = now;
+  try { SOUNDS[name](arg); } catch {}
+}
+
+/* ---------- Effects ----------
+   The extras: particles on one overlay canvas, floating text and shake. They never hold up input, and they stop
+   with Effects off or on a device set to reduce motion (fxOn). Cards and dice moving is a separate check, RM. */
+let fxSetting = ls.get("pc.fx", true) !== false;
+const fxOn = () => fxSetting && !RM;
+const FX_MAX = 500;
+let fxCanvas = null, fxCtx = null, fxParts = [], fxRaf = 0, fxLast = 0;
+const fxShakes = new Map();
+function fxResize() {
+  const dpr = Math.min(2, devicePixelRatio || 1), w = Math.ceil(innerWidth * dpr), h = Math.ceil(innerHeight * dpr);
+  if (fxCanvas.width !== w || fxCanvas.height !== h) { fxCanvas.width = w; fxCanvas.height = h; }
+  fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function fxFrame(now) {
+  const dt = Math.max(0, Math.min(0.033, (now - fxLast) / 1000)); fxLast = now;
+  fxResize();
+  fxCtx.clearRect(0, 0, innerWidth, innerHeight);
+  fxParts = fxParts.filter((p) => (p.left -= dt) > 0);
+  for (const p of fxParts) {
+    p.vy += p.gravity * dt; p.vx *= Math.exp(-p.drag * dt); p.vy *= Math.exp(-p.drag * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    const f = p.left / p.life;
+    fxCtx.globalAlpha = Math.min(1, f * 1.6);
+    fxCtx.fillStyle = p.color;
+    fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.size * (0.4 + 0.6 * f), 0, Math.PI * 2); fxCtx.fill();
+  }
+  fxCtx.globalAlpha = 1;
+  fxRaf = fxParts.length ? requestAnimationFrame(fxFrame) : 0;
+}
+// A burst at a point on the screen. color is one colour or several, each a CSS colour or a token like "--suit-2".
+function fxBurst(x, y, { color = "--accent", n = 18, speed = 280, life = 0.6, size = 3, gravity = 520, drag = 2.2 } = {}) {
+  if (!fxOn()) return;
+  if (!fxCanvas) {
+    fxCanvas = document.createElement("canvas");
+    fxCanvas.className = "fx-canvas"; fxCanvas.setAttribute("aria-hidden", "true");
+    document.body.appendChild(fxCanvas);
+    fxCtx = fxCanvas.getContext("2d");
+  }
+  const root = getComputedStyle(document.documentElement);
+  const colors = [].concat(color).map((c) => (c.startsWith("--") ? root.getPropertyValue(c).trim() : c));
+  for (let i = 0; i < n && fxParts.length < FX_MAX; i++) {
+    const a = Math.random() * Math.PI * 2, sp = speed * (0.35 + Math.random() * 0.65), l = life * (0.6 + Math.random() * 0.4);
+    fxParts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, left: l, life: l, gravity, drag,
+      size: size * (0.6 + Math.random() * 0.8), color: colors[i % colors.length] });
+  }
+  if (!fxRaf) { fxLast = performance.now(); fxRaf = requestAnimationFrame(fxFrame); }
+}
+// Shakes the page, or one element such as the tray. strength 1 is a hard hit.
+function fxShake(strength = 1, el = document.querySelector(".wrap")) {
+  if (!fxOn() || !el) return;
+  const steps = 7, amp = 9 * strength, frames = [{ transform: "none" }];
+  for (let i = 1; i < steps; i++) {
+    const a = amp * (1 - i / steps), dir = Math.random() * Math.PI * 2;
+    frames.push({ transform: `translate(${(Math.cos(dir) * a).toFixed(1)}px, ${(Math.sin(dir) * a).toFixed(1)}px)` });
+  }
+  frames.push({ transform: "none" });
+  if (fxShakes.has(el)) fxShakes.get(el).cancel();
+  const anim = el.animate(frames, { duration: 160 + 240 * Math.min(1, strength), easing: "ease-out" });
+  fxShakes.set(el, anim);
+  anim.onfinish = () => { if (fxShakes.get(el) === anim) fxShakes.delete(el); };
+}
+// Text centred on a point that rises and fades. Pass frames for another movement, like a slam.
+function fxFloat(text, x, y, { color = "var(--accent)", size = 26, frames, duration = 950 } = {}) {
+  if (!fxOn()) return;
+  const el = document.createElement("span");
+  el.className = "fx-float"; el.setAttribute("aria-hidden", "true");
+  el.textContent = text; el.style.color = color; el.style.fontSize = size + "px";
+  document.body.appendChild(el);
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + "px";
+  el.style.top = Math.max(8, Math.min(innerHeight - h - 8, y - h / 2)) + "px";
+  el.animate(frames || [
+    { transform: "translateY(8px) scale(.7)", opacity: 0 },
+    { transform: "translateY(-10px) scale(1.08)", opacity: 1, offset: 0.2 },
+    { transform: "translateY(-22px) scale(1)", opacity: 1, offset: 0.6 },
+    { transform: "translateY(-52px) scale(1)", opacity: 0 },
+  ], { duration, easing: "ease-out", fill: "forwards" }).onfinish = () => el.remove();
+}
+// Stops everything on screen at once, for turning Effects off.
+function fxClear() {
+  fxParts = [];
+  if (fxRaf) { cancelAnimationFrame(fxRaf); fxRaf = 0; }
+  if (fxCtx) fxCtx.clearRect(0, 0, innerWidth, innerHeight);
+  fxShakes.forEach((a) => a.cancel()); fxShakes.clear();
+  document.querySelectorAll(".fx-float").forEach((el) => el.remove());
 }
 
 class Die {
@@ -2369,7 +2521,7 @@ class Die {
     this.result = rollValue(this.sides);
     this.rolling = true; this.dist = 0; this.nextFlip = 0; this.t0 = performance.now(); this.lt = this.t0; this.flipPhase = 0;
     this.el.classList.remove("waiting", "landed");
-    clack(0.5);
+    sfx("clack", 0.5);
     if (RM) { this.showFace(this.result); this.finish(); return; }
     requestAnimationFrame((t) => this.step(t));
   }
@@ -2378,7 +2530,7 @@ class Die {
     const { W, H, S } = this.bounds();
     const maxX = Math.max(0, W - S), maxY = Math.max(0, H - S - 18);
     this.x += this.vx * dt; this.y += this.vy * dt;
-    const bounce = (v) => { clack(Math.min(1, Math.abs(v) / 2000)); this.av = -this.av * 0.8 + (Math.random() - 0.5) * 300; };
+    const bounce = (v) => { sfx("clack", Math.min(1, Math.abs(v) / 2000)); this.av = -this.av * 0.8 + (Math.random() - 0.5) * 300; };
     if (this.x < 0) { this.x = 0; bounce(this.vx); this.vx = -this.vx * 0.62; }
     if (this.x > maxX) { this.x = maxX; bounce(this.vx); this.vx = -this.vx * 0.62; }
     if (this.y < 0) { this.y = 0; bounce(this.vy); this.vy = -this.vy * 0.62; }
@@ -2405,7 +2557,7 @@ class Die {
     if (!RM) this.svg.animate([{ transform: `rotate(${this.rot}deg)` }, { transform: `rotate(${target}deg)` }], { duration: 260, easing: "ease-out" });
     this.rot = target; this.apply(1);
     void this.el.offsetWidth; this.el.classList.add("landed");
-    clack(0.3);
+    sfx("thunk");
     if (this.onResult) this.onResult(this.result, this);
   }
   remove() { this.el.remove(); }
@@ -2687,6 +2839,7 @@ function draw() {
   state.current = { card: asDrawn(base), pid, values: [], idx: -1, hands: {}, ...(base.modifier ? { powerup: true } : {}) };
   state.tokenSub = null;
   saveInPlay();
+  sfx("swish");
   const topBack = $("pile").querySelector(".back-layer:nth-child(3)");
   renderCurrent(topBack);
   if (topBack) topBack.innerHTML = backHTML();
@@ -2730,7 +2883,7 @@ function advance(first) {
   c.idx = next;
   saveInPlay();
   updateRule();
-  if (next === -1) { setTrayDone(); return; }
+  if (next === -1) { if (!first) sfx("chord"); setTrayDone(); return; }
   setTrayForSlot(liveSlot(c, next), first);
 }
 // The slot as the tray rolls it. A phoneme pool becomes a pick from the hand dealt for it, and a slot with
@@ -2883,6 +3036,7 @@ function cancelSub() {
 function rerollInPlay(tokenId, i) {
   const c = state.current; if (!c || state.busy || !rerollSlotsInPlay(c).includes(i)) return;
   spendToken(tokenId);
+  sfx("spend");
   state.tokenSub = null; c.rrPick = false; c.choosing = false; c.lo = null;
   const changed = changedSlots(c.card, i);
   c.values = clearSlots(c.values, changed);
@@ -2894,6 +3048,7 @@ function rerollInPlay(tokenId, i) {
 function cleanse(tokenId, kind) {
   const k = state.curses.find((x) => x.kind === kind); if (!k) return;
   spendToken(tokenId);
+  sfx("cleanse");
   state.tokenSub = null;
   state.curses = state.curses.filter((x) => x !== k); saveCurses();
   const before = state.aside.slice();
@@ -2976,7 +3131,7 @@ function startChange(t, sl) {
   const m = state.current.mod, changed = changedSlots(t.card, sl.i);
   const values = clearSlots(t.values, changed);
   if (sl.flip) values[sl.i] = { n: sl.flip.n, label: sl.flip.label, flipped: m.name };
-  if (m.tokenId) spendToken(m.tokenId);
+  if (m.tokenId) { spendToken(m.tokenId); sfx("spend"); }
   state.current = { card: t.card, values, idx: -1, hands: {}, base: t.base,
     mod: { kind: m.kind, cardId: m.cardId, name: m.name, step: "change", entryId: t.entry.id, slot: sl.i, changed, ...(m.legacyPid ? { legacyPid: m.legacyPid } : {}) } };
   saveInPlay(); renderCurrent(); renderPile();
@@ -3003,6 +3158,7 @@ function useMod() {
   if (!old) { toast("That card has left your deck, so the change can't be saved."); doneWithMod(); return; }
   const entry = changedEntry(old, c.card, c.values, m.changed, m.name);
   doneWithMod();
+  sfx("keep");
   const before = state.aside.slice();
   replaceEntry(entry);
   toast(`Changed “${entry.name}” with “${m.name}”.` + pileNews(before));
@@ -3037,13 +3193,14 @@ function takeToken(giveUp) {
   const c = state.current; if (!c || !c.powerup || state.busy) return;
   const card = c.card;
   let msg;
-  if (giveUp === "new") msg = `Left ${card.name}.`;
+  if (giveUp === "new") { msg = `Left ${card.name}.`; sfx("whoosh"); }
   else {
     let gone = null;
     if (giveUp) { gone = state.tokens.find((t) => t.id === giveUp); if (gone) spendToken(gone.id); }
     if (atCap()) return;
     state.tokens.push({ id: newId("t"), kind: card.modifier, name: card.name, cardId: card.id }); saveTokens();
     msg = `Took a ${card.name} token.` + (gone ? ` Gave up ${gone.name}.` : "");
+    sfx("chime");
   }
   const pid = c.pid || card.id;
   if (!state.used.includes(pid)) { state.used.push(pid); ls.set("pc.used", state.used); }
@@ -3060,6 +3217,7 @@ function takeCurse() {
   const at = state.curses.findIndex((x) => x.kind === k.kind);
   if (at >= 0) state.curses[at] = k; else state.curses.push(k);
   saveCurses();
+  sfx("curse");
   const pid = c.pid || c.card.id;
   if (!state.used.includes(pid)) { state.used.push(pid); ls.set("pc.used", state.used); }
   state.current = null; saveInPlay();
@@ -3376,6 +3534,7 @@ function onSlotResult(n, die) {
     fly(from, target, sym ? `/${sym}/` : label, () => {
       c.values[i] = value;
       state.busy = false;
+      sfx("tick");
       updateRule();
       const el = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
       if (el) el.classList.add("pop");
@@ -3404,6 +3563,7 @@ function choose(n, el) {
   value.chosen = true;
   if (c.rerolled === i) { value.rerolled = true; c.rerolled = null; }
   spendToken(c.choosing);
+  sfx("spend");
   c.choosing = false; c.lo = null;
   renderTokens();
   el.classList.add("hit");
@@ -3413,6 +3573,7 @@ function choose(n, el) {
     fly(el, $("cardSlot").querySelector(`.slot[data-i="${i}"]`), sym ? `/${sym}/` : label, () => {
       c.values[i] = value;
       state.busy = false;
+      sfx("tick");
       updateRule();
       const s2 = $("cardSlot").querySelector(`.slot[data-i="${i}"]`);
       if (s2) s2.classList.add("pop");
@@ -3465,6 +3626,8 @@ function keep() {
     renderCurrent(); renderPile(); setTrayIdle();
     const before = state.aside.slice();
     const ended = tickCurses(c.card);
+    sfx("keep");
+    if (ended.length) sfx("crack");
     addEntry(entry);
     toast(`Kept “${entry.name}”${c.card.cursedBy ? `, cursed by ${c.card.cursedBy.map(curseLabel).join(" and ")}` : ""}.`
       + (ended.length ? ` ${ended.map(curseLabel).join(" and ")} ended.` : "") + pileNews(before));
@@ -3488,6 +3651,7 @@ function discard() {
     spendToken(t.id); paid = true;
   }
   state.pile.push(inPlayId()); ls.set("pc.pile", state.pile);
+  sfx("whoosh");
   const el = $("cardSlot").querySelector(".card");
   state.busy = true;
   const finish = () => { state.busy = false; state.current = null; saveInPlay(); renderCurrent(); renderPile(); setTrayIdle(); toast(`Discarded${paid ? " with a Discard token" : ""}. It went to the bottom of the pile.`); };
@@ -3870,7 +4034,23 @@ $("clearBtn").addEventListener("click", () => {
   clearArmed = setTimeout(() => { b.dataset.armed = ""; b.textContent = "Clear deck"; }, 3500);
 });
 function syncSoundBtn() { const b = $("soundBtn"); b.setAttribute("aria-pressed", String(soundOn)); b.textContent = soundOn ? "Sound on" : "Sound off"; }
-$("soundBtn").addEventListener("click", () => { soundOn = !soundOn; ls.set("pc.sound", soundOn); syncSoundBtn(); if (soundOn) clack(0.4); });
+$("soundBtn").addEventListener("click", () => { soundOn = !soundOn; ls.set("pc.sound", soundOn); syncSoundBtn(); if (soundOn) sfx("clack", 0.4); });
+function syncFxBtn() {
+  const b = $("fxBtn");
+  b.setAttribute("aria-pressed", String(fxOn()));
+  b.textContent = fxOn() ? "Effects on" : "Effects off";
+  if (RM) { b.setAttribute("aria-disabled", "true"); b.title = "This device is set to reduce motion, so effects stay off."; }
+}
+$("fxBtn").addEventListener("click", () => {
+  if (RM) { toast($("fxBtn").title); return; }
+  fxSetting = !fxSetting; ls.set("pc.fx", fxSetting); syncFxBtn();
+  if (!fxSetting) { fxClear(); return; }
+  // Turning effects on shows them, as turning sound on plays a sound.
+  const r = $("fxBtn").getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  fxBurst(x, y, { color: ["--suit-1", "--suit-2", "--suit-3", "--suit-4", "--suit-5"], n: 40, speed: 420 });
+  fxFloat("Effects on", x, y + 34);
+  fxShake(0.5);
+});
 $("editBtn").addEventListener("click", () => { $("src").value = state.source; renderPreview(); $("editor").showModal(); });
 $("src").addEventListener("input", renderPreview);
 $("restoreBtn").addEventListener("click", () => { $("src").value = DEFAULT_SOURCE; renderPreview(); });
@@ -3955,6 +4135,7 @@ if (saved && saved.mod) {
 }
 if (state.current && state.current.pid) state.pile = state.pile.filter((id) => id !== state.current.pid);
 syncSoundBtn();
+syncFxBtn();
 syncGameBtn();
 renderPile();
 renderCurrent();
